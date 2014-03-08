@@ -1,0 +1,63 @@
+<h3>Режим разработки</h3>
+
+Выставление режима разработки посредством флага DEV_MODE включает дополнительную функциональность и добавляет
+отладочные сообщения в консоль для облегчения понимания что происходит или почему что-то не работает
+
+<h4>Начало</h4>
+
+3 способа включить режим разработки:
+<ol>
+    <li>установить флаг jiant:
+                <pre><code class="js">
+                    jiant.DEV_MODE = true
+                </code></pre>
+    </li>
+    <li>передать true как третий параметр вызова bindUi:
+                <pre><code class="js">
+                    jiant.bindUi("_", myAppRoot, true);
+                </code></pre>
+    </li>
+    <li>Добавить в урл (в любое место) строку "<b>jiant.dev_mode</b>"
+                <pre><code class="js">
+                    http://localhost?jiant.dev_mode
+                    http://localhost/?lot=of&other=query&params=here&jiant.dev_mode
+                </code></pre>
+    </li>
+</ol>
+Last one useful for production environment, for example. Second is most convenient.
+
+<h4>Логгирование</h4>
+
+<b>jiant.logInfo</b> работает только когда <b>DEV_MODE</b> включен.
+Включается печать всего процесса связывания <b>bindUi()</b> - состояния, события, виджеты, шаблоны, аякс функции и тд.
+Если режим разработки включен, но сообщения о процессе связывания отсутствуют -
+возможно флаг был выставлен после вызова bindUi.
+Примеры сообщений:
+<pre><code class="js">
+    binding UI for view: dailyBonus jiant.js:147
+    bound UI for: container jiant.js:147
+    bound UI for: ctls
+    ajax bindings:
+
+    binding ajax for function: getUserHomeInfo
+    binding ajax for function: getUserStatistics
+    binding ajax for function: i18n
+</code></pre>
+
+<h4>Алерт</h4>
+
+В режиме разработки если были какие-то ошибки связывания - выводится финальный алерт с полным списком ошибок,
+чтобы разработчик их точно не упустил.
+
+<h4>Информация по щелчку</h4>
+В режиме разработки каждый UI элемент, связанный с помощью jiant, получает специальный обработчик щелчка мышью:
+<ul>
+    <li><b>alt+shift+left mouse click</b> -
+        показывает объявление элемента и печатает его в консоль
+    </li>
+    <li><b>ctrl+alt+shift+left mouse click</b> - дополнительно показывает обработчики событий
+        на элементе и также печатает их в консоль
+    </li>
+</ul>
+
+Достаточно удобно когда что-то не срабатывает, чтобы понять - нет обработчика щелчка на элементе, или нужно искать другую ошибку.

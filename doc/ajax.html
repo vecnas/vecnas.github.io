@@ -1,0 +1,158 @@
+<h4>Начало</h4>
+
+Чтобы начать использовать jiant.Ajax, добавьте секцию <b>ajax</b> в спецификацию приложения:
+
+<pre><code class="js">
+    var myApp = {
+
+        ajax: {
+            setUserName: function(userId, firstName, lastName, cb) {},
+            searchUsers: function(searchString, cb) {}
+        }
+
+    }
+</code></pre>
+
+Имеем 2 серверных вызова. Имя метода должно совпадать с URI для вызова,
+имена параметров функции должны быть равны именам параметров запроса.
+После вызова <b>jiant.bindUi(myApp)</b> - данные определения замещаются настоящими аяксовыми вызовами.
+Чтобы их использовать - достаточно просто вызывать как обычные функции.
+Результаты с сервера передаются как параметр в коллбэк (последний параметр при объявлении функции).
+
+<pre><code class="js">
+    myApp.ajax.setUserName(12344, "John", "Smith", function(result) {});
+</code></pre>
+
+Данный вызов сгенерирует (выделены функция из определения и имена параметров):
+
+<pre><code class="js">
+    <b>setUserName</b>?<b>userId</b>=12344&<b>firstName</b>=John&<b>lastName</b>=Smith
+</code></pre>
+
+<h4>Данные с сервера</h4>
+
+Коллбэк-функция вызывается после выполнения аяксового запроса на сервер.
+Ей передается один параметр - результаты вызова, полученные с сервера.
+Коллбэк вызывается в случае успешного завершения вызова.
+В случае ошибки - вызывается функция обработки ошибки (см. далее).
+
+Коллбэк передается как последний параметр вызова:
+
+<pre><code class="js">
+    myApp.ajax.setUserName(687, "Mary", "Black", function(someServerResponse) {alert(someServerResponse);});
+</code></pre>
+
+После получения данных с сервера, Jiant пытается разобрать их как JSON.
+В случае неудачи разбора в JSON - передается исходная строка. В обоих случаях результат передается коллбэку
+как единственный параметр функции.
+В случае если с сервера приходит сообщение об ошибке (статус код не 200) - коллбэк не вызывается.
+По умолчанию все ошибки печатаются в консоль. Можно также определить свой собственный обработчик ошибок:
+<ol>
+    <li><b>jiant.handleErrorFn</b> - определить функцию, одна на весь jiant,
+        принимает 1 параметр - XHR.responseText:
+<pre><code class="js">
+    jiant.handleErrorFn = function(errText) { alert("Server returned error: " + errText); }
+</code></pre>
+    </li>
+    <li>
+        или передать функцию обработки ошибок в вызов на сервер, как еще один параметр после коллбэка:
+<pre><code class="js">
+    myApp.ajax.setUserName(12344, "John", "Smith", function(result) {}, function(error) { show2user("Server is
+    broken!"); });
+</code></pre>
+    </li>
+</ol>
+
+Таким образом, правило следующее - если два последних параметра серверного вызова, оба функции - то первый
+это успешный коллбэк и второй - обработчик ошибок. Если только последний параметр вызова - функция,
+то это успешный коллбэк.
+<p></p>
+Если ответ сервера не имеет значения - можно вообще не передавать коллбэков, например:
+
+<pre><code class="js">
+    myApp.ajax.deleteAllAndIgnoreConsequences();
+</code></pre>
+
+Наличие коллбэка в определении функции опционально, рекомендовано для подсказок при написании кода.
+Любые параметры определения являются опциональными, например:
+
+<pre><code class="js">
+    var myApp = {
+        ajax: {
+            doStaff: function(id, name, birthday) {}
+        }
+    }
+
+    myApp.ajax.doStaff(62345); // will produce /doStaff?id=62345
+    myApp.ajax.doStaff(62345, "works"); // will produce /doStaff?id=62345&name=works
+</code></pre>
+
+<h4>Конфигурация</h4>
+
+Предположим, урл для вызова на сервер равен <b>"myUrl.jsp"</b>,
+мы не можем использовать эту строку как имя метода. В этом случае есть 3 возможности:
+<ol>
+    <li>Установить <b>jiant.AJAX_PREFIX</b> и <b>jiant.AJAX_SUFFIX</b>, что имеет влияние на jiant в целом:
+<pre><code class="js">
+    jiant.AJAX_PREFIX = "/my_custom_root/";
+    jiant.AJAX_SUFFIX = ".asp";
+    //вызов из предыдущего примера становится (подчеркнуты префикс и суффикс)
+    <u>/my_custom_root/</u>setUserName<u>.asp</u>?userId=12344&firstName=John&lastName=Smith
+</code></pre>
+    </li>
+    <li>Вернуть урл для вызова из функции определения:
+<pre><code class="js">
+    var myApp = {
+        ajax: {
+            setUserName: function(userId, firstName, lastName, cb) { return "/myapp1/set.php"; },
+            searchUsers: function(searchString, cb) { return "/myapp2/search"; }
+        }
+    }
+</code></pre>
+    </li>
+    <li>
+        Установить префикс и суффикс (<b>ajaxPrefix</b>, <b>ajaxSuffix</b>) для приложения:
+<pre><code class="js">
+    var myApp = {
+        id: "someApp",
+        ajaxPrefix: "some cross domain url",
+    }
+</code></pre>
+    </li>
+</ol>
+
+Методы могут смешиваться, приоритеты следующие - вначале смотрим возвращаемое значение функции,
+затем определение приложения, затем глобальную настройку jiant.
+
+<h4>Логгирование</h4>
+
+<b>Только когда включен DEV_MODE.</b>
+<p></p>
+Для каждого связанного аякс вызова, в консоль печатается сообщение:
+
+<pre><code class="js">
+    binding ajax for function: function_name
+</code></pre>
+
+И для каждого собственно выполненного вызова:
+<pre><code class="js">
+    " AJAX call. " + uri + " to server url: " + url
+</code></pre>
+
+<h4>Детали реализации</h4>
+
+Для каждой функции генерируется следующий аякс обработчик:
+
+<pre><code class="js">
+    $.ajax(url, {data: callData, traditional: true ...
+</code></pre>
+
+Любые вызовы <b>jQuery ajaxSetup</b> влияют на выполнение аяксовых вызовов.
+Например, конфигурация для кроссдомена или выполнение запросов используя POST а не GET.
+<p></p>
+Параметр <b>antiCache3721=current time</b> добавляется к каждому вызову во избежание кэширования
+
+Для форм - <b>submitForm</b> может использоваться чтобы отослать форму на сервер,
+смотрите секцию Детали для подробностей.
+Этот метод также использует текущие настройки <b>ajaxPrefix</b>, <b>ajaxSuffix</b>, <b>crossdomain</b>.
+

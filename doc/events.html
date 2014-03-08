@@ -1,0 +1,82 @@
+<h4>Начало</h4>
+
+Jiant обеспечивает встроенную шину событий. Чтобы использовать ее - добавьте секцию <b>events</b>
+в определение приложения и опишите ваши события уровня приложения:
+
+<pre><code class="js">
+    var myApp = {
+
+        events: {
+            NewDataArrived: {
+                fire: function(data) {},
+                on: function(cb) {}
+            },
+            NewPhoneCall: {
+                fire: function(phoneNumber, operator) {},
+                on: function(cb) {}
+            }
+        }
+
+    }
+</code></pre>
+
+<h4>Подписка на события</h4>
+
+<pre><code class="js">
+    myApp.events.NewDataArrived.on(function(data) {
+        //обрабатываем данные
+    });
+
+    myApp.events.NewPhoneCall.on(function(phoneNumber, operator) {
+        //что-нибудь делаем
+    });
+</code></pre>
+
+<h4>Генерация событий</h4>
+
+<pre><code class="js">
+    myApp.events.NewDataArrived.fire(myData);
+    myApp.events.NewPhoneCall.fire("1234567890", "Johnny");
+</code></pre>
+
+Подписчики начнут получать события только после своей регистрации на события.
+Любое количество подписчиков возможно и кто угодно может генерировать события.
+
+<h4>Для совсем ленивых</h4>
+
+методы <b>fire</b> и <b>on</b> определены только для целей автозавершения, документации и удобства.
+Кратчайшая работающая форма шины событий следующая:
+
+<pre><code class="js">
+    var myApp = {
+
+        events: {
+            NewDataArrived: {},
+            NewPhoneCall: {}
+        }
+
+    }
+</code></pre>
+
+Однако не рекомендуется так писать, потому что неясно какие именно данные поступают когда событие случится.
+
+<h4>Логгирование</h4>
+
+<b>Только когда включен DEV_MODE.</b>
+        <p></p>
+Для каждого определения события в консоль печатается строка (во время стартового связывания):
+
+<pre><code class="js">
+    binding event: eventName
+</code></pre>
+
+Для каждого подписчика в консоль печатается (на каждый <b>on</b>, в любой момент жизни приложения):
+
+<pre><code class="js">
+    assigning event handler to eventName
+</code></pre>
+
+<h4>Детали реализации</h4>
+Каждый объект события также содержит поле <b>listenersCount</b>, увеличиваемое при каждом новом подписчике.
+Объект самого события сейчас не передается в метод <b>on</b>, поэтому параметры
+коллбэка <b>on</b> в точности совпадают с параметрами метода <b>fire</b>

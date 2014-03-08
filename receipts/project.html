@@ -1,0 +1,129 @@
+<h4>Проектирование</h4>
+Здесь изложена последовательность действий при проектировании и реализации проекта, выработанная
+в процессе использования jiant
+
+<h4>Название и структура</h4>
+<ol>
+    <li>Придумываем название проекту, это будет идентификатором, например demoProject</li>
+    <li>В папке js создаем папку с названием проекта, в ней создаем папку app,
+        в которой будет размещено приложение и рядом js файл с названием проекта, и закинем первый файл приложения:
+        <pre><code class="js">
+            js
+            |- demoProject
+                    |- demoProject.js
+                    |- app
+                        |- main.js
+        </code></pre>
+    </li>
+    <li>
+        файл demoProject.js содержит jiant-определение проекта,
+        <pre><code class="js">
+            var demoProject = {
+                id: "mycompany.demoProject",
+                views: {},
+                templates: {}
+            }
+        </code></pre>
+    </li>
+    <li> main.js пока что содержит только пустой коллбэк:
+        <pre><code class="js">
+            jiant.onUiBound(demoProject, [], function($, app) {
+                alert("Application started");
+            });
+        </code></pre>
+    </li>
+</ol>
+
+<h4>Хост страница</h4>
+Создаем страницу, где будет размещено приложение - html или jsp, в конце добавляем нужные скрипты:
+<pre><code class="html">
+    &lt;script src='js/jquery.js'>&lt;/script>
+    &lt;script src='js/jiant.js'>&lt;/script>
+    &lt;script src='js/jiant_xl.js'>&lt;/script>
+    &lt;script src='js/demoProject/demoProject.js'>&lt;/script>
+    &lt;script src='js/demoProject/app/main.js'>&lt;/script>
+    &lt;script>
+        $(function() {
+            jiant.bindUi("_", demoProject, true);
+        })
+    &lt;/script>
+</code></pre>
+Сюда же будем добавлять скрипты приложения по мере их появления и html реализации виджетов и шаблонов.
+
+<h4>Начальный анализ</h4>
+Решаем, будет ли приложение поддерживать состояния и хэш-навигацию, будет ли у него меню.
+Если да, добавляем jiant.xl вызовы в main:
+<pre><code class="js">
+    jiant.xl.statefulApp(demoProject, "View", app.states.main)();
+    jiant.xl.nav(demoProject, app.views.nav, "Ctl", "active")();
+</code></pre>
+Накидываем состояния на глазок в файл с определением
+<pre><code class="js">
+    states: {
+        "": {},
+        main: {
+            go: function(id) {},
+            start: function(cb) {},
+            end: function(cb) {}
+        },
+        profile: {
+            go: function() {},
+            start: function(cb) {},
+            end: function(cb) {}
+        }
+</code></pre>
+
+добавляем виджет с меню и закидываем в него нужные элементы
+<pre><code class="js">
+    views: {
+        nav: {
+            mainCtl: jiant.ctl,
+            profileCtl: jiant.ctl
+        }
+    }
+</code></pre>
+
+накидываем виджеты экранов.
+<pre><code class="js">
+    views: {
+        mainView: {},
+        profileView: {}
+    }
+</code></pre>
+
+Теперь у нас есть полноценное приложение с навигацией и меню. Нужно еще реализовать виджеты в html, делаем это
+<pre><code class="html">
+    &lt;ul id="_nav">
+        &lt;li class="_mainCtl">Main&lt;/li>
+        &lt;li class="_profileCtl">Profile&lt;/li>
+    &lt;/ul>
+    &lt;div id="_mainView">Main view&lt;/div>
+    &lt;div id="_profileView">Profile view&lt;/div>
+</code></pre>
+
+<h4>Кроссдоменные виджеты</h4>
+Когда приложение может использоваться кроссдоменно, следующая организация кода выглядит наиболее удобно.
+В случае java имеем хостинг jsp и отдельную views.jsp, которая содержит все виджеты и шаблоны.
+Хостинг jsp импортирует views.jsp, и добавляем метод на сервере, который отдельно может вернуть только views.jsp
+для кроссдоменной загрузки.
+
+<h4>Дальнейшее проектирование</h4>
+<ul>
+    <li>Все серверные вызовы по мере появления добавляем в demoProject.js, секцию <b>ajax</b></li>
+    <li>По мере разработки - добавляем нужные виджеты и шаблоны</li>
+    <li>Если где-то показываем постраничные списки - воспользуемся
+        <pre><code class="js">
+            jiant.xl.pagedContent
+        </code></pre>
+    </li>
+    <li>Если какие-то данные важны для разных частей приложения - добавляем <b>models</b> и заносим их туда</li>
+    <li>Если есть какая-то общая логика, не зависящая от специфики приложения - например создание и показ диалогов -
+    лучше вынести ее как <b>logic</b> и впоследствии если что-то поменяется - это сэкономит очень много сил и времени</li>
+</ul>
+
+<h4>Разделяй и властвуй</h4>
+Ни в коем случае не пихайте весь код в один файл приложения.
+Создавайте много мелких, каждый в идеале до страницы размером и охватывает только небольшую часть.
+
+<h4>Минификация</h4>
+При данной структуре - просто натравите минификатор на папку <b>app</b>

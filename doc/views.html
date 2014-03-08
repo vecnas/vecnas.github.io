@@ -1,0 +1,307 @@
+<h4>Начало</h4>
+
+Чтобы начать использовать jiant.views - добавьте секцию <b>views</b> в определение приложения.
+Эта секция содержит список виджетов, каждый виджет содержит список элементов (компонентов):
+
+<pre><code class="js">
+    var app = {
+        id: "viewsApp",
+
+        views: {
+
+            mainLayout: {
+                login: jiant.ctl,
+                centralPane: jiant.container
+            },
+
+            toolbar: {
+                buttons: jiant.collection
+            }
+
+        }
+    }
+
+    bindUi("_", app);
+</code></pre>
+
+После вызова <b>bindUi</b> - можно использовать,
+
+<pre><code class="js">
+    app.views.mainLayout.login.click(function() {} );
+</code></pre>
+
+<h4>Объявление виджетов</h4>
+
+        Объявляйте виджеты не думая об их реализации. Будьте абсолютно абстрактны, описывайте их словно устно:
+        <i>"экран редактирования содержит поле ввода имени, кнопку для записи, кнопку чтобы вернуться назад"</i>
+
+<pre><code class="js">
+    views: {
+        editView: {
+            firstNameInput: jiant.input,
+            saveButton: jiant.ctl,
+            backButton: jiant.ctl,
+            allButtons: jiant.collection // аспект "все кнопки" содержит и кнопку записи и кнопку возврата
+        }
+    }
+</code></pre>
+
+        Объявите столько виджетов сколько хотите. И снова - не думайте о реализации, некоторые виджеты в итоге могут
+ссылаться на одинаковые элементы интерфейса с разных точек зрения
+
+<h4>Объявление элементов</h4>
+
+        Обычно тип элемента (jiant.ctl, jiant.input) носит скорее характер документации, его можно объявлять даже как 1:
+
+<pre><code class="js">
+    someCtl: 1
+</code></pre>
+
+        Но несколько типов элементов имеют специальное значение. Смотрите раздел Детали для подробностей.
+Есть также 2 специальных объявления не-элементов, а именно -
+
+<h4>Мета объявление</h4>
+
+<b>jiant.meta</b> - означает "это не элемент интерфейса", и предназначен для хранения мета-информации о виджете.
+Он не привязывается к элементу html. Например, можно отметить виджеты
+
+<pre><code class="js">
+    dialog: jiant.meta
+</code></pre>
+
+и затем после связывания интерфейса выполнить для них
+
+<pre><code class="js">
+    $.each(app.views, function(idx, view) {
+        view.dialog && app.logic.dialogs.init(view);
+    });
+</code></pre>
+
+<h4>Переопределение реализации</h4>
+
+        И второе специальное объявление - <b>appPrefix</b>, в данном случае имеет значение не тип, а имя объявления.
+        Оно переопределяет <b>appPrefix</b> приложения и может использоваться для изменения внешней реализации виджета.
+        Например, если загружается html из внешнего источника и какой-то виджет хочется внешне отрисовать совсем по-другому.
+        Выставьте <b>appPrefix</b> на виджете и добавьте свою html реализацию:
+
+<pre><code class="js">
+    extApp.views.profileView.appPrefix="my_";
+</code></pre>
+...
+<pre><code class="html">
+    &lt;div id="my_profileView">....
+</code></pre>
+
+        Если рассматривать объявление виджета в JSON как интерфейс, и HTML код как реализацию
+- вы используете свою реализацию интерфейса вместо стандартной.
+
+<h4>Реализация</h4>
+
+        Добавьте HTML реализацию для каждого виджета, используя id и класс селекторы (смотрите также базовые принципы).
+        Например <!--(цвета показывают связь между объявлением и реализацией)-->
+
+<pre><code class="html">
+    &lt;div id="_editView">
+        First name: &lt;input class="_firstNameInput"/>
+        &lt;button class="_saveButton _allButtons">Save&lt;/button>
+        &lt;a href="/" class="_backButton _allButtons">Back&lt;/a>
+    &lt;/div>
+</code></pre>
+
+Кстати, виджеты могут пересекаться произвольным образом, тем самым демонстрируя разные аспекты и их пересечение.
+
+<h4>Использование</h4>
+
+        После связывания приложения посредством <b>bindUi</b> - все виджеты привязываются к соответствующим
+jQuery оберткам по идентификатору, и все элементы виджетов привязываются к jQuery оберткам по классу.
+        Теперь это обычные jQuery объекты, например (jQuery функциональность выделена):
+
+<pre><code class="js">
+    var mainView = app.views.mainView,
+    editView = app.views.editView;
+
+    mainView.editCtl.<b>click</b>(function() {
+        mainView.container.<b>append</b>(editView);
+        editView.<b>fadeIn</b>();
+    });
+</code></pre>
+
+<h4>Привязка к данным</h4>
+
+Каждый виджет содержит функцию <b>propagate(data)</b>. Эта функция связывает элементы виджета с полями данных.
+        Следующие правила используются: <b>input</b>, <b>textarea</b> - через вызов <b>val()</b>,
+<b>image</b> - через <b>src</b> атрибут, остальные элементы - через вызов <b>html()</b>.
+Используется настоящий html тип элемента, независимо от того как он объявлен в спецификации. Например:
+
+<pre><code class="js">
+    // объявление
+    mainView: {
+        form: jiant.form,
+        ctl: jiant.ctl,
+        face: jiant.image,
+        name: jiant.input,
+        sex: jiant.label,
+        notes: jiant.label,
+        id: jiant.input
+    }
+</code></pre>
+
+<pre><code class="html">
+    &lt;!-- реализация -->
+    &lt;div id="_mainView">
+        &lt;form action="save" method="post" class="_form">
+            &lt;img class="_face"/>
+
+            &lt;div class="_sex">&lt;/div>
+            &lt;input class="_name"/>
+            &lt;input class="_id" type="hidden"/>
+            &lt;textarea class="_notes">&lt;/textarea>
+            &lt;a class="_ctl">Save&lt;/a>
+        &lt;/form>
+    &lt;/div>
+</code></pre>
+
+<pre><code class="js">
+    // предположим, getUserData вернул данные:
+    userData: {
+        id: 754,
+        sex: "male",
+        name: "John",
+        notes: "tro-lo-lo",
+        face: "http://images.com/1.jpg"
+    }
+
+    // остается отрисовать их на виджете
+    myapp.ajax.getUserData(userId, function(userData) {
+        myapp.views.mainView.propagate(userData);
+    });
+</code></pre>
+
+<pre><code class="html">
+    &lt;!-- теперь виджет выглядит следующим образом -->
+    &lt;div id="_mainView">
+        &lt;form action="save" method="post" class="_form">
+            &lt;img class="_face" src="http://images.com/1.jpg"/>
+
+            &lt;div class="_sex">male&lt;/div>
+            &lt;input class="_name" value="John"/>
+            &lt;input class="_id" value="754" type="hidden"/>
+            &lt;textarea class="_notes">tro-lo-lo&lt;/textarea>
+            &lt;a class="_ctl">Save&lt;/a>
+        &lt;/form>
+    &lt;/div>
+</code></pre>
+
+<pre><code class="js">
+    // отошлем форму
+    myapp.views.mainView.ctl.click(function() {
+        myapp.views.mainView.form.submitForm(function() { alert("saved"); });
+    });
+</code></pre>
+
+<h4>Привязка к модели</h4>
+
+        <b>propagate()</b> также связывает виджеты (и шаблоны) с моделями. В этом случае дополнительно модель
+прослушивается на предмет изменений и виджет немедленно обновляется
+
+<pre><code class="js">
+    view.propagate(model, autoUpdate)
+</code></pre>
+
+<b>autoUpdate</b> = false выключает прослушивание изменений и использует текущее состояние модели без дальнейших обновлений
+
+<pre><code class="js">
+    views: {
+        userView: {
+            name: jiant.label,
+            email: jiant.label
+        }
+    },
+
+    models: {
+        user: {
+            name: function(val) {},
+            email: function(val) {},
+        }
+    }
+    .....
+    views.userView.propagate(models.user);
+    models.user.name("Another name"); // HTML обновлен
+</code></pre>
+
+<h4>Специальный отрисовщик</h4>
+
+        Для специального представления данных на элементе, ему может присваиваться специальный отрисовщик:
+
+<pre><code class="js">
+    customRenderer: function(modelObject, view, value, isUpdate);
+</code></pre>
+
+        <ul>
+            <li><b>modelObject</b> - объект данных или модели</li>
+            <li><b>view</b> - ссылка на виджет (не на элемент)</li>
+            <li><b>value</b> - текущее значение поля объекта или модели</li>
+            <li><b>isUpdate</b> - флаг, показывающий первый ли это вызов или последующие обновления
+                (полезен, например, для анимации)</li>
+        </ul>
+
+Чтобы установить <b>customRenderer</b> - просто добавьте его к элементу:
+
+<pre><code class="js">
+    views.userView.email.customRenderer = function(...) { ... }
+</code></pre>
+
+        <b>customRenderer</b> может использоваться для отрисовки прогресса, подсветки и так далее - что угодно.
+        При вызове <b>propagate()</b> - он будет выполнен для всех полей имеющих <b>customRenderer</b>, даже если их значения
+не переданы или не изменились.
+
+<h4>Элементы виджетов</h4>
+
+Элементы(компоненты) виджетов описаны в секции деталей
+
+<h4>Логгирование</h4>
+
+        <b>Только когда включен DEV_MODE.</b>
+        <p></p>
+        Для каждого привязанного виджета в консоль печатается:
+
+<pre><code class="html">
+    binding UI for view: viewName
+</code></pre>
+
+Если имя виджета или элемента пересекается с существующей jQuery функцией, в консоль печатается:
+<pre><code class="html">
+    unsafe extension: extend already defined in base jQuery, shouldn't be used
+</code></pre>
+
+        Если в HTML отсутствует реализация виджета или каких-то его элементов, Jiant печатает ошибку в консоль (всегда)
+и показывает суммарный алерт со списком ошибок, если включен <b>DEV_MODE</b>
+
+<h4>Детали реализации</h4>
+
+На стадии связывания каждый виджет привязывается к HTML элементу с идентификатором равным appPrefix + имя виджета.
+<p></p>
+Каждый элемент привязывается к HTML элементу с классом равным appPrefix + имя элемента
+(и расположенному внутри реализации виджета). Например:
+
+<pre><code class="html">
+    &lt;div id="_mainView">
+        &lt;button class="_ctl">
+    &lt;/div>
+</code></pre>
+
+<pre><code class="js">
+    var app = {
+        views: {
+            mainView: {
+                ctl: jiant.ctl
+            }
+        }
+    };
+
+    bindUi("_", app);
+</code></pre>
+
+Один HTML элемент может быть привязан ко многим элементам спецификации или к виджету и элементу одновременно
+(через id и класс). Во время <b>bindUi()</b> вызывается <b>jQuery.find()</b> и результат добавляется к определению
+используя <b>jQuery.extend()</b>

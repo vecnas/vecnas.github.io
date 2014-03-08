@@ -1,0 +1,33 @@
+<h3>onUiBound</h3>
+        Практика показала, что использование <b>jiant.onUiBound</b>
+- это единственный верный способ добавлять программную логику к приложению.
+В этом случае получаем идеальную изоляцию кода и максимальную совместимость с минимизацией-обфускацией приложения.
+Разработчика практически заставляют следовать лучшим практикам.
+
+Полный синтакс вызова следующий:
+
+<pre><code class="js">
+    jiant.onUiBound([app1, app2], [[dep1, dep2], [dep3, dep4]], function($, app1, app2) {});
+</code></pre>
+
+Можно пропускать ненужные аргументы:
+
+<pre><code class="js">
+    jiant.onUiBound(app1, function($, app) {}) - нет зависимостей и только одно приложение
+    jiant.onUiBound([app1, app2, app3], function($, app1, app2, app3) {}) - много приложений, зависимостей нет
+    jiant.onUiBound(appId, function($, app) {}); - привязка по идентификатору приложения
+</code></pre>
+
+заметьте анонимный код внутри коллбэка:
+
+<pre><code class="js">
+    jiant.onUiBound(function($, app) {
+
+        app.views.askView && app.views.askView.brokenCtl.click(function() {
+            app.views.askView.brokenCtl.css("background-color", "#ff0");
+        });
+
+    });
+</code></pre>
+
+Также стоит взглянуть на секцию Логики чтобы понять механизм зависимостей

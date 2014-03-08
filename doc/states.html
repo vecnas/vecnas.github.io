@@ -1,0 +1,210 @@
+<h4>Начало</h4>
+
+Jiant.States обеспечивает поддержку навигации по истории в браузере и возможность сохранения состояния
+приложения при обновлении страницы.
+Например, когда вы хотите поддерживать кнопки вперед-назад в браузере
+или закладку на текущее состояние динамического аякс приложения
+Чтобы начать использовать состояния - добавьте секцию <b>states</b> в определение приложения:
+
+<pre><code class="js">
+    var myApp = {
+
+        states: {
+            contactList: {
+                go: function(pageNum, searchString) {},
+                start: function(cb) {},
+                end: function(cb) {},
+                root: true
+            },
+            newContact: {
+                go: function() {},
+                start: function(cb) {},
+                end: function(cb) {}
+            },
+            editContact: {
+                go: function(contactId) {},
+                start: function(cb) {},
+                end: function(cb) {}
+            }
+        }
+
+    }
+</code></pre>
+
+Теперь, для перехода в состояние <b>contactList</b>:
+
+<pre><code class="js">
+    myApp.states.contactList.go(1, "");
+</code></pre>
+
+Чтобы обрабатывать изменения состояния приложения - подпишитесь на события старта и завершения состояния:
+
+<pre><code class="js">
+    myApp.states.editContact.start(function(contactId) {
+        myApp.views.loading.show();
+        myApp.ajax.getContactData(contactId, function(contactData) {
+            myApp.views.loading.hide();
+            showEditContactForm(contactData);
+        }
+    });
+
+    myApp.states.editContact.end(function(contactId) {
+        hideEditContactForm();
+    });
+</code></pre>
+
+<h4>Параметры состояний</h4>
+
+Состояние может иметь любое количество параметров. Пример последовательности событий состояний
+
+<pre><code class="js">
+    myApp.states.contactList.go(1);
+        // fired contactList.start
+    myApp.states.editContact.go(436);
+        // fired contactList.end
+        // fired editContact.start
+    myApp.states.editContact.go(444);
+        // fired editContact.start
+    jiant.refreshState();
+        // fired editContact.start
+    myApp.states.newContact.go();
+        // fired editContact.end
+        // fired newContact.start
+</code></pre>
+
+Как правило коллбэки состояний получают те же параметры, которые были использованы при вызове <b>go()</b>.
+Но передавая
+<b>undefined</b> как параметр вызова, вы можете просто переиспользовать последнее известное значение параметра.
+Это полезно когда например меняется только один из параметров состояния, а другие остаются в прежних значениях.
+Например:
+
+<pre><code class="js">
+    contactList.go(5, "s");
+        // page num: 5, filter string: "s"
+    contactList.go(undefined, "q");
+        // page num still 5, filter string: "q"
+    contactList.go(10);
+        // page num: 10, filter string still "q"
+        // but:
+    newContact.go();
+    contactList.go(10);
+        // now filter string lost and resetted to empty value
+</code></pre>
+
+Что позволяет удобно разделить разные аспекты состояния.
+
+<h4>Внешние скрипты</h4>
+
+Движок состояний работает на основе <b>jquery.hashchange.js</b>, есть на github возле самого jiant.js.
+Этот скрипт базируется на старом плагине к jQuery, дополнительно переработанном и адаптированном для jiant.
+Если состояния используются, а плагин не добавлен - jiant показывает алерт
+<pre><code class="js">
+    No hashchange plugin and states configured. Don't use states or add $.hashchange plugin
+</code></pre>
+
+во время начального связывания (алерт если DEV_MODE включен, иначе просто ошибка в консоли)
+
+<h4>Корневые состояния</h4>
+Некоторые состояния приложения иногда могут рассматриваться как корневые. Например, список контактов -
+вы возвращаетесь сюда после редактирования контакта или создания нового. Такие состояния можно
+отметить флагом <b>root</b>, как в примере выше и затем вызвать
+
+<pre><code class="js">
+    jiant.goRoot();
+</code></pre>
+
+в любой момент, чтобы вернуться к ближайшему корневому состоянию.
+<p></p>
+Чтобы вернуться к корневому состоянию отдельно приложения - передайте его идентификатор в вызов goRoot:
+
+<pre><code class="js">
+    jiant.goRoot(appId);
+</code></pre>
+
+Jiant всегда отслеживает последнее корневое состояние.
+
+Например:
+<pre><code class="js">
+    myApp.states.contactList.go(2, "");
+    myApp.states.contactList.go(5, "qwer");
+    myApp.states.editContact.go(5643);
+    // теперь пользователь нажимает "Save" и приложение вызывает
+    jiant.goRoot();
+    // пользователь оказался на 5 странице списка контактов с фильтром "qwer"
+</code></pre>
+
+Любое количество корневых состояний возможно. Вы всегда вернетесь к последнему со всеми его параметрами.
+
+<h4>Пустое состояние</h4>
+
+Для обработки начальной загрузки страницы, без хэш-строки, объявите пустое состояние:
+
+<pre><code class="js">
+    var myApp = {
+        states: {
+            "": {}
+        }
+    }
+</code></pre>
+
+Теперь вы можете прослушивать его как обычно:
+
+<pre><code class="js">
+    myApp.states[""].start(function() {goSomeDefaultState();});
+</code></pre>
+
+<h4>Обновление состояния</h4>
+
+Чтобы заставить все подписчики состояния обновиться - вызовите <b>jiant.refreshState()</b>.
+Полезно, например, когда вы удалили что-то со списка и хотите полностью перегрузить текущую страницу.
+Этот метод также принимает идентификатор приложения чтобы обновить только одно приложение.
+
+<h4>Для ленивых</h4>
+
+Можно объявлять состояния следующим образом:
+
+<pre><code class="js">
+    var myApp = {
+
+    states: {
+        contactList: {
+            go: function(pageNum),
+            root: true
+        },
+        newContact: {},
+        editContact: {}
+    }
+
+    }
+</code></pre>
+
+Jiant добавит все необъявленные методы.
+
+<h4>Несколько приложений</h4>
+Движок состояний поддерживает несколько приложений на странице. Чтобы обновить только одно - вызовите
+<b>jiant.refreshState</b> с параметром равным идентификатору приложения. Иначе будут обновлены
+все приложения на странице.
+        <p></p>
+Пример - когда одно приложение является основным и загружает другое в какую-нибудь панель,
+показываемую только при входе в некоторое состояние. Тогда при старте этого состояния иногда имеет смысл
+для второго приложения вызвать обновление, например:
+
+<pre><code class="js">
+    mainApp.start(function() {
+        jiant.refreshState(crmApp);
+    });
+</code></pre>
+
+<h4>Логгирование</h4>
+<b>Только когда включен DEV_MODE.</b>
+<p></p>
+Во время связывания для каждого состояния в консоль печатается:
+
+<pre><code class="js">
+    binding state: stateName
+</code></pre>
+
+<h4>Детали реализации</h4>
+
+Состояния хранятся в строке браузера. Как текущее, так и последнее корневое.
+Корневое заменяется каждый раз, когда загружается какое-либо корневое состояние.
