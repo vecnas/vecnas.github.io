@@ -1,0 +1,18 @@
+<h4>Состояния / States</h4>
+Сохранение параметров в адресной строке браузера, навигация и восстановление при обновлении окна браузера.
+Код работы с состояниями генерируется на основе объявления следующего вида
+<pre><code>
+  states: {
+    main: {
+      go: function(param) {},
+      start: function(cb) {},
+      end: function(cb) {}
+    }
+  }
+</code></pre>
+Дальше остается только использовать
+<pre><code>
+  app.states.main.start(function(param) {
+    alert("we in a main state now, with parameter " + param)
+  })
+</code></pre>

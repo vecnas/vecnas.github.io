@@ -1,0 +1,15 @@
+<h4>Шаблоны / Templates</h4>
+Шаблоны необходимы при генерации содержимого. Их содержимое также проверяется и связывается с реализацией при старте приложения
+<pre><code>
+  templates: {
+    tm: {
+      elem: jiant.label
+    }
+  }
+</code></pre>
+И затем
+<pre><code>
+  jiant.onUiBound(app, function($, app) {
+    var elem = app.templates.tm.parseTemplate()
+  })
+</code></pre>

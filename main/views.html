@@ -1,0 +1,18 @@
+<h4>Виджеты / Views</h4>
+Виджеты и их элементы объявляются в секции views и автоматически привязываются к html реализации
+<pre><code>
+  views: {
+    navbar: {
+      mainCtl: jiant.ctl,
+      helpCtl: jiant.ctl
+    }
+  }
+</code></pre>
+Префикс используется для уникальной изоляции html кода разных приложений. В приведенном примере используем префикс "_"
+<pre><code>
+  &lt;div id="_navbar">
+    &lt;button class="_mainCtl">Main&lt;/button>
+    &lt;a class="_helpCtl">Help&lt;/a>
+  &lt;/div>
+</code></pre>
+Виджет привязывается к реализации по идентификатору, элементы виджета по классу

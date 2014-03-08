@@ -1,0 +1,160 @@
+<h3>Типы элементов</h3>
+
+Jiant предлагает несколько типов для определения элементов виджетов и шаблонов.
+Большинство носит декоративный характер и служит исключительно целям документирования и читабельности.
+Но несколько добавляют дополнительный функционал.
+Полный список всех типов:
+<ul>
+    <li><b>collection</b>, - коллекция элементов, декоративный</li>
+    <li><b>container</b>, - контейнер элементов, декоративный</li>
+    <li><b>containerPaged</b>, - не следует использовать, будет удален</li>
+    <li><b>ctl</b>, - некий контрол для взаимодействия, декоративный</li>
+    <li><b>fn</b>, - некая функция с одним параметром. эксперимент, декоративный, будет удален</li>
+    <li><b>form</b>, - см. далее</li>
+    <li><b>grid</b>, - таблица, декоративный</li>
+    <li><b>image</b>, - декоративный</li>
+    <li><b>input</b>, - элемент пользовательского ввода, декоративный</li>
+    <li><b>inputInt</b>, - см. далее</li>
+    <li><b>inputFloat</b>, - см. далее</li>
+    <li><b>label</b>, - некий текст на экране, декоративный</li>
+    <li><b>lookup</b>, - см. далее</li>
+    <li><b>meta</b>, - мета флаг, не элемент интерфейса</li>
+    <li><b>on</b>, - регистрация коллбэка, декоративный, будет удален</li>
+    <li><b>pager</b>, - см. далее</li>
+    <li><b>slider</b>, - декоративный</li>
+    <li><b>stub</b>, - см. далее</li>
+    <li><b>tabs</b>, - см. далее</li>
+</ul>
+
+<h4>jiant.form</h4>
+
+Проверяет что ссылается на HTML <b>form</b> элемент. Когда объявлен как элемент виджета
+- проверяет на старте приложения, когда объявлен как элемент шаблона - проверяет во время генерации шаблона.
+В случае ошибки выводит в консоль (и алертом в режиме разработки):
+
+<pre><code class="js">
+    myView.myForm form element assigned to non-form: div
+</code></pre>
+
+если ссылается не на форму
+
+Также элемент, определенный как jiant.form, получает метод
+
+<pre><code class="js">
+    submitForm(url, callback)
+</code></pre>
+
+Этот метод использует кроссдоменные настройки и установленный <b>ajaxPrefix</b> (см. раздел Ajax)
+Если первый параметр неопределен (или равен null, false, 0) - для отправки формы используется ее атрибут action
+When first parameter is undefined (or null or false or 0) - form attribute "action" used for form submit.
+Internally this method calls and returns result of
+
+<pre><code class="js">
+    $.post(url, form.serialize(), callback);
+</code></pre>
+
+Example:
+
+<pre><code class="js">
+    var myApp = {
+
+        views: {
+            main: {
+                myForm: jiant.form
+            }
+        },
+
+        templates: {
+            tm: {
+                tmForm: jiant.form
+            }
+        }
+    }
+
+
+    jiant.bindUi("_", myApp);
+
+
+    myApp.views.main.myForm.submitForm(null, function() {
+        alert("form submitted");
+    });
+    var tmResult = myApp.templates.tm.parseTemplate({});
+    // append, manipulate tmResult
+    tmResult.tmForm.submitForm("some_specific_url.php");
+</code></pre>
+
+<h4>jiant.inputInt</h4>
+добавляет ограничение на поле ввода - только цифры, добавляет возможность изменять текущее значение стрелками
+
+<h4>jiant.inputFloat</h4>
+
+то же что <b>inputInt</b>, плюс пользователь может нажимать точку, чтобы вводить дробные значения
+
+<h4>jiant.tabs</h4>
+
+вызывает функцию <b>.tabs()</b> на элемент, если она доступна (например, jqueryui есть на странице)
+Добавляет функцию refreshTabs() к элементу, синоним для вызова <b>uiElem.tabs("refresh");</b>
+
+<h4>jiant.stub</h4>
+
+выводит имя функции откуда было вызвано алертом. Эксперимент, возможно будет удалено
+
+<h4>jiant.lookup</h4>
+
+Игнорирует стартовую проверку существования элемента. <b>Является функцией, в отличие от других элементов!</b>
+Осуществляет поиск элемента во время вызова. Полезно для динамического поиска элементов виджета.
+Во время связывания пишет в консоль (если включен режим разработки):
+
+<pre><code class="js">
+    loookup element, no checks/bindings: elemName
+</code></pre>
+
+<h4>jiant.pager</h4>
+Эксперимент по построению сложного поведения вокруг одного контрола. Прижилось.
+Используется в частности в <b>Jiant.XL</b>.
+<p></p>
+Выстраивает внутри заданного элемента bootstrap-совместимую структуру навигации по страницам,
+добавляя элементу следующие методы:
+
+<pre><code class="js">
+    onValueChange(callback);
+    updatePager(page);
+</code></pre>
+
+объект страницы <b>page</b> является Spring-совместимым и должен иметь следующую структуру:
+
+<pre><code class="js">
+    page: {
+        number : 2,
+        totalPages: 10
+    }
+</code></pre>
+
+Пример:
+
+<pre><code class="js">
+    var myApp = {
+
+        ajax: {
+            getData: function(pageNum, callback);
+        },
+
+        views: {
+            list: {
+                container: jiant.container,
+                pager: jiant.pager
+            }
+        }
+
+    }
+
+    jiant.bindUi("_", myApp);
+
+    myApp.views.list.pager.onValueChange(function(event, pageNum) { // note event parameter here is first!
+        myApp.ajax.getData(pageNum, function(page) {
+        myApp.views.list.pager.updatePager(page);
+        // do actual list data update
+    });
+</code></pre>
+
+Как показывает этот пример - все возможности Jiant естественным образом дополняют и усиливают друг друга

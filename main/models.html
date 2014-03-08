@@ -1,0 +1,22 @@
+<h4>Модель данных / Models</h4>
+Интерфейс доступа к общим данным приложения с автогенерацией функций доступа и подпиской на события изменения
+<pre><code>
+  models: {
+    tag: {
+      add: function(arr) {},
+      all: function() {},
+      findById: function(id) {},
+      id: function(id) {},
+      name: function(name) {}
+    }
+  }
+</code></pre>
+Весь код для объявления выше автогенерируется, остается пользоваться
+<pre><code>
+  var tag12 = app.models.tag.findById(12);
+  tag12.name("new name"); // установить значение
+  tag12.name(); // получить значение
+  tag12.name.on(function(tag, name) {
+    ...
+  }) // подписываемся на изменения
+</code></pre>
