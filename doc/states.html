@@ -93,6 +93,39 @@ Jiant.States обеспечивает поддержку навигации по
 
 Что позволяет удобно разделить разные аспекты состояния.
 
+<h4>Группы состояний</h4>
+Иногда возникает желание передавать параметры по умолчанию между разными состояниями. 
+В этом случае можно воспользоваться параметром группы состояний:
+<pre><code class="js">
+            contactList: {
+                statesGroup: 1,
+                go: function(pageNum, searchString) {},
+                start: function(cb) {},
+                end: function(cb) {},
+                root: true
+            },
+            contactListToo: {
+                statesGroup: 1,
+                go: function(pageNum, searchString) {},
+                start: function(cb) {},
+                end: function(cb) {},
+                root: true
+            },
+</code></pre>
+Задаем <b>statesGroup</b> значение и все состояния с одним значением <b>statesGroup</b> 
+будут обмениваться параметрами при переходах следующим образом:
+
+<pre><code class="js">
+    contactList.go(5, "s");
+        // page num: 5, filter string: "s"
+    contactListToo.go();
+        // page num: 5, filter string: "s"
+    contactList.go(10);
+        // page num: 10, filter string: "s"
+</code></pre>
+
+Можно задать любое количество групп состояний
+
 <h4>Внешние скрипты</h4>
 
 Движок состояний работает на основе <b>jquery.hashchange.js</b>, есть на github возле самого jiant.js.
