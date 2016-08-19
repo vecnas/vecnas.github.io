@@ -1,0 +1,707 @@
+<h4>Идея XL</h4>
+
+Многие программные решения выглядят похоже. Повторяя что-нибудь типа "поместить здесь постраничный список".
+Теперь, благодаря jiant, у нас есть действительно подходящий уровень абстракции приложения для
+реализации таких решений. Что-то вроде программирования шаблонами.
+<p></p>
+Например,
+<pre class="brush: js">
+    pageableContentView(someContainerToPutData, someContainerForPager, itemRenderTemplate,
+                        ajaxFunctionToGetDataFromServer, optionalExtraprocessorCallbackForItemExtraFunctionality)
+        // программное решение для постраничного показа данных
+
+    removeCtl(control, modelInstance)
+        // элемент интерфейса для удаления объекта из модели
+</pre>
+
+Это выглядит как обычные функции, но более читаемо и понимаемо. Назовем их <b>eXtra Logic</b> (СверхЛогика).
+<b>jiant_xl.js</b> содержит начальные рецепты и по мере понимания организации приложений - будет расширяться.
+Все функции в нем базируются на высоком уровне абстракции, обеспечиваемом jiant.
+
+<h4>Важно</h4>
+
+<b>Почти все XL функции возвращают функции, поэтому нужно их дополнительно вызвать, как в последующих примерах.</b>
+Это сделано для возможности оперерировать ими в свою очередь как объектами, хотя возможно не всегда удачно сработало.
+
+<h4>Кнопка, переводящая в состояние</h4>
+
+<pre class="brush: js">
+    ctl2state: function(ctl, state, selectedCssClass, goProxy)
+</pre>
+
+Переводит приложение в заданное состояние при взаимодействии пользователя с заданным элементом интерфейса.
+<p></p>
+Параметры
+<ul>
+    <li><b>ctl</b> - кликабельный элемент</li>
+    <li><b>state</b> - состояние, в которое нужно отправить</li>
+    <li><b>selectedCssClass</b> (опционально) - css класс, добавляемый к элементу, когда приложение в заданном состоянии</li>
+    <li><b>goProxy</b> (опционально) - прокси функция для случаев, когда просто вызвать <b>state.go()</b>
+        недостаточно. Например, чтобы отправить приложение в состояние с параметрами.
+        Состояние передается как параметр коллбэка: <b>goProxy(state)</b>
+    </li>
+</ul>
+
+Пример
+<pre class="brush: js">
+    jiant.xl.ctl2state(app.views.main.homeCtl, app.states.home, "active")()
+</pre>
+
+<h4>Виджеты, привязанные к состояниям</h4>
+
+<pre class="brush: js">
+    statefulViews: function(states, views)
+</pre>
+
+Виджеты, чья видимость привязана к определенным состояниям приложения.
+Показывает данные виджеты при переходе в заданные состояния и прячет при выходе.
+<p></p>
+Параметры
+<ul>
+    <li><b>states</b> - одно состояние или массив состояний</li>
+    <li><b>views</b> - виджет или массив виджетов</li>
+</ul>
+
+Пример
+<pre class="brush: js">
+    jiant.xl.statefulViews(app.states.search, [app.views.searchPanel, app.views.searchResults])();
+</pre>
+
+<h4>Приложение на состояниях</h4>
+
+<pre class="brush: js">
+    statefulApp: function(app, viewNameSuffix, defaultState)
+</pre>
+
+Используется для организации целого приложения в режиме поддержки состояний - состояния и страницы к ним привязанные.
+<p></p>
+Параметры
+<ul>
+    <li><b>app</b> - переменная определения приложения</li>
+    <li><b>viewNameSuffix</b> - суффикс который добавляется к имени состояния чтобы получить имя виджета который
+        к нему привязан</li>
+    <li><b>defaultState</b> (опционально) - основное состояние, в которое необходимо перевести
+        приложение сразу после загрузки, из пустого
+    </li>
+</ul>
+Для каждого состояния приложения - ищет виджет с именем равным  имени состояния плюс суффикс
+и показывает-прячет его при входе-выходе из данного состояния.
+Виджеты не прячутся на старте приложения, они реагируют только на изменения состояний.
+<p></p>
+Пример
+<pre class="brush: js">
+    var app =  {
+        states: {
+            editContact: {},
+            main: {},
+            contactList: {}
+        },
+        views: {
+            editContactView: {},
+            mainView: {},
+            contactListView: {}
+        }
+    };
+
+    .....
+
+    jiant.xl.statefulApp(app, "View", app.states.main)();
+</pre>
+
+<h4>Навигация приложения</h4>
+
+<pre class="brush: js">
+    nav: function(app, view, suffix, selectedCssClass, goProxy)
+</pre>
+
+Используется для организации меню навигации приложения
+<p></p>
+Параметры
+<ul>
+    <li><b>app</b> - переменная определения приложения</li>
+    <li><b>view</b> - виджет, содержащий навигацию</li>
+    <li><b>suffix</b> - суффикс, добавляемый к состояниям для получения соответствующего элемента навигации</li>
+    <li><b>selectedCssClass</b> (опционально) - css класс для подсветки элементов меню, когда приложение находится
+        в соответствующем состоянии</li>
+    <li><b>goProxy</b> (опционально) - <b>state.go()</b> прокси функция, аналогично <b>ctl2state</b> выше</li>
+</ul>
+Для каждого состояния приложения ищет элемент внутри виджета навигации с именем равным состоянию плюс суффикс
+и добавляет к нему обработчик перехода в данное состояние
+<p></p>
+Пример
+<pre class="brush: js">
+    var app =  {
+        states: {
+            editContact: {},
+            main: {},
+            contactList: {}
+        },
+        views: {
+            nav: {
+                editContactCtl: jiant.ctl,
+                mainCtl: jiant.ctl,
+                contactListCtl: jiant.ctl
+            }
+        }
+    };
+
+    .....
+
+    jiant.xl.nav(app, app.views.nav, "Ctl", "active")();
+</pre>
+
+
+<h4>Представление модели списком</h4>
+
+<pre class="brush: js">
+    bindList: function(model, container, template, viewFieldSetterName, sortFn, subscribeForUpdates,
+                       reversePropagate, elemFactory, mapping)
+</pre>
+
+Представляет модель на интерфейсе. Отслеживает изменения модели, добавляя/удаляя и изменяя данные,
+при выставлении соответствующих настроек при вызове.
+<p></p>
+Параметры:
+<ul>
+    <li><b>model</b> - модель, объявленная в определении приложения</li>
+    <li><b>container</b> - контейнер куда помещаются представления объектов модели</li>
+    <li><b>template</b> - шаблон для отрисовки отдельного объекта модели.
+        Может быть функцией: <b>tm(obj)</b>, принимающей объект модели и возвращающей шаблон для отрисовки
+        в зависимости от данных
+    </li>
+    <li><b>viewFieldSetterName</b> (опционально) - имя метода модели для сохранения элемента, представляющего объект</li>
+    <li>
+        <b>sortFn</b> (опционально) - функция сортировки представления объектов, например для показа объектов модели
+        отсортированными, принимает два параметра, возвращает +- или 0 - в зависимости от порядка объектов
+    </li>
+    <li>
+        <b>subscribeForUpdates</b> (опционально) - подписывать ли отдельный шаблон на изменения соответствующего
+        объекта модели, передается при вызове <b>parseTemplate</b>
+    </li>
+    <li>
+        <b>reversePropagate</b> (опционально) - подписывать ли объект модели на изменения интерфейса,
+        передается при вызове <b>parseTemplate</b>
+    </li>
+    <li>
+        <b>elemFactory</b> (опционально) - фабрика элементов, для не-html сценариев (например, для 3д представления).
+        Обеспечивает создание визуальных элементов для представления объектов модели. Фабрика элементов должна
+        предоставлять два метода
+        <ul>
+            <li><b>elemFactory.create(obj, subscribeForUpdates, reversePropagate)</b> - для создания визуальных объектов,
+                вызывается для каждой модели</li>
+            <li><b>elemFactory.remove(uiElem)</b> - вызывается при удалении объекта из модели,
+                требует поля в модели <b>viewFieldSetterName</b> для хранения ссылки на визуальное представление</li>
+        </ul>
+    </li>
+    <li>
+        <b>mapping</b> (опционально) - маппинг имен, передается при вызове <b>parseTemplate</b>
+    </li>
+</ul>
+
+Возвращает объект - функцию, которую необходимо вызывать для запуска.
+Также у возвращаемого объекта есть метод <b>off</b> для отключения связывания.
+
+Пример:
+
+<pre class="brush: js">
+    models: {
+        user: {
+            add: function(list) {},
+            remove: function(obj) {},
+
+            id: function(id) {},
+            view: function(view) {}
+        }
+    }
+
+    var bindModel = jiant.xl.bindList(app.models.user, app.views.userList, app.templates.userTm, "view");
+    bindModel();
+    bindModel.off();
+</pre>
+
+
+<h4>Представление объектов списком</h4>
+
+<pre class="brush: js">
+    renderList: function(list, container, tm, perItemCb, noItemsLabel, subscribeForUpdates, appendMode, mapping)
+</pre>
+
+представляет список объектов на интерфейсе
+<p></p>
+Параметры:
+<ul>
+    <li><b>list</b> - массив объектов</li>
+    <li><b>container</b> - контейнер для размещения элементов</li>
+    <li><b>tm</b> - шаблон для отрисовки отдельного объекта</li>
+    <li><b>perItemCb</b> (опционально) - коллбэк, вызывается для каждого объекта, принимает объект
+        и сгенерированный элемент интерфейса - <b>perItemCb(obj, elem)</b></li>
+    <li><b>noItemsLabel</b> (опционально) - элемент для показа если список пуст, например ссылка на html div "нет контактов"</li>
+    <li><b>subscribeForUpdates</b> (опционально) - подписывать ли результат разбора шаблона на изменения переданного объекта</li>
+    <li><b>appendMode</b> (опционально) - если установлено в <b>true</b>, вызовы не будут предварительно очищать контейнер</li>
+    <li><b>mapping</b> (опционально) - задает маппинг имен объектов к именам элементов шаблона</li>
+</ul>
+
+
+<h4>Фильтруемые данные</h4>
+<pre class="brush: js">
+    filterableData: function(model, ajax, filterModel, updateOnModel, completeCb, singletonMode)
+</pre>
+Представляет концепцию фильтруемой модели. В качестве фильтра выступает другая модель. Изменения фильтра
+вызывают обновление данных в исходной модели.
+<p></p>
+Параметры:
+<ul>
+    <li>
+        <b>model</b> - модель, в которой хранятся данные
+    </li>
+    <li>
+        <b>ajax</b> - аяксовый метод для получения данных с сервера, в качестве параметра принимает модель фильтра.
+        Сервер должен вернуть данные в соответствии с переданным фильтром
+    </li>
+    <li>
+        <b>filterModel</b> - модель, в которой хранится фильтр данных, изменения модели фильтра вызывают
+        обращения на сервер и загрузку новых данных, если выставлен флаг <b>updateOnModel</b>
+    </li>
+    <li>
+        <b>updateOnModel</b> (опционально) - флаг, если выставлен в <b>true</b> - любые изменения модели фильтра
+        немедленно вызывают загрузку отфильтрованных данных
+    </li>
+    <li>
+        <b>completeCb</b> (опционально) - коллбэк на возвращаемые данные, если передан - дополнительно вызывается
+        после загрузки данных с сервера, принимает один параметр - данные с сервера, ничего не возвращает
+    </li>
+    <li>
+        <b>singletonMode</b> (опционально) - по умолчанию - <b>false</b>, задает режим использования базовой модели.
+        Если это режим синглтона, модель обновляется данными как один объект(<b>update()</b>),
+        иначе как репозиторий(<b>jRepo.updateAll()</b>).
+    </li>
+</ul>
+Возвращаемое значение - функция, вызов которой вызывает немедленное обновление данных модели исходя из текущего фильтра
+<p></p>
+Например,
+<pre class="brush: js">
+    var app = {
+        ajax: {
+            getUserData: function(filterData, cb) {}
+        },
+        models: {
+            user: {
+                jRepo: {
+                    updateAll: function(arr) {}
+                },
+                firstName: function(val) {},
+                lastName: function(val) {},
+                email: function(val) {},
+            }
+            filter: {
+                jRepo: {},
+                name: function(val) {},
+                email: function(val) {}
+            }
+        }
+
+    }
+    .....
+    var completeCb = function(data) {
+        jiant.logInfo("Data arrived, data);
+    };
+    var fd = jiant.xl.filterableData(app.models.user, app.ajax.getUserData, app.models.filter, true, completeCb, false);
+    fd();
+</pre>
+
+
+<h4>Постраничная фильтруемая сортируемая модель</h4>
+<pre class="brush: js">
+    pageableFilterableSortableModel: function(model, ajax, state, pager, filterSortModel)
+</pre>
+Представляет собой модель данных с поддержкой фильтрации, сортировки и постраничного листания.
+Также осуществляет привязку к состоянию приложения, если необходимо.
+<p></p>
+Параметры:
+<ul>
+    <li><b>model</b> - собственно модель данных </li>
+    <li><b>ajax</b> - серверный метод для загрузки данных, принимает объект модели фильтра и информацию о странице.
+        Возвращаемые с сервера данные должны иметь специальную структуру, совместимую со Spring'ом, см. следующую главу</li>
+    <li><b>state</b> (опционально) - состояние приложения, на старт этого состояния - обновляется модель исходя
+        из текущего состояния фильтра. Принимает параметр - номер страницы</li>
+    <li><b>pager</b> (опционально) - элемент типа jiant.pager или совместимый с ним по интерфейсу,
+        для поддержки постраничной работы</li>
+    <li><b>filterSortModel</b> (опционально) - модель, хранящая состояние фильтра и поле сортировки, сортировка задается
+        через поле модели <b>sort</b></li>, это поле передается на сервер, который уже решает как сортировать
+        исходя из его значения
+</ul>
+Возвращает функцию, вызов которой обновляет данные модели.
+<p></p>
+Пример:
+<pre class="brush: js">
+    var app = {
+        ajax: {
+            search: function(s, pageable, cb) {}
+        },
+        states: {
+            main: {
+                go: function(pageNum) {}
+            }
+        },
+        views: {
+            searchResultsView: {
+                container: jiant.container,
+                pager: jiant.pager
+            }
+        },
+        models: {
+            searchResult: {
+                jRepo: {},
+                text: function(val) {},
+                url: function(val) {}
+            }
+            searchFilter: {
+                jRepo: {},
+                s: function(val) {},
+                sort: function(val) {}
+            }
+        }
+    };
+    .....
+    var fn = jiant.xl.pageableFilterableSortableModel(app.models.searchResult, app.ajax.search, app.states.main,
+                                             app.views.searchResultView.pager, app.models.searchFilter);
+    fn();
+    app.models.searchFilter.sort("text"); // сортировать по тексту
+    app.states.main.go(3); // 3-я страница результатов
+</pre>
+
+
+<h4>Формат постраничных данных</h4>
+Во всех методах, которые работают с постраничными данными ожидается специальный формат данных с сервера,
+который содержит сами данные и информацию о страницах. В следующем примере показан этот формат
+<pre class="brush: js">
+    ajax: {
+        sendData: function(pageable, cb) {}
+    }
+    .....
+    // в данном случае использованы оба варианта передачи номера страницы, старый и новый форматы Spring'а
+    var p = {
+        "page.page": parsedNum,
+        "page": parsedNum
+    };
+    app.ajax.sendData(p, function(data) {
+        // объект data имеет следующую структуру
+        data = {
+            totalPages: 3, // всего страниц
+            number: 1, // текущая страница
+            content: [
+                // array of actual data results
+            ]
+        };
+    });
+</pre>
+Данный формат использован на основе Java Spring фреймворка и автоматически совместим с ним.
+
+
+<h4>Постраничные фильтруемые сортируемые данные</h4>
+<pre class="brush: js">
+    pageableFilterableSortable: function(state, container, pager, template, ajax, filterModel, perItemCb, noItemsLabel, onCompleteCb)
+</pre>
+Представляет собой фильтруемые сортируемые данные с возможностью постраничного листания,
+отображенные непосредственно на интерфейсе, без промежуточных моделей
+<p></p>
+Параметры:
+<ul>
+    <li><b>state</b> (опционально) - привязанное состояние, первый параметр - номер страницы, на старт состояния
+        - обновляется содержимое</li>
+    <li><b>container</b> - элемент контейнера, куда отрисовывается содержимое</li>
+    <li><b>pager</b> - элемент jiant.pager, отвечает за постраничное листание</li>
+    <li><b>template</b> - шаблон для отрисовки содержимого</li>
+    <li><b>ajax</b> - метод для получения данных с сервера, два параметра - фильтр и информация о текущей странице
+        для просмотра</li>
+    <li><b>filterModel</b> (опционально) - модель фильтра данных</li>
+    <li><b>perItemCb</b> (опционально) - коллбэк вызываемый для каждого элемента данных</li>
+    <li><b>noItemsLabel</b> (опционально) - элемент интерфейса, показываемый в случае если нет данных</li>
+    <li><b>onCompleteCb</b> (опционально) - коллбэк, вызываемый после разбора и показа всех данных</li>
+</ul>
+Возвращает функцию, вызов которой обновляет данные на интерфейсе.
+<p></p>
+Пример
+<pre class="brush: js">
+    var app = {
+        ajax: {
+            search: function(s, pageable, cb) {}
+        },
+        states: {
+            main: {
+                go: function(pageNum) {}
+            }
+        },
+        views: {
+            searchResultsView: {
+                noResultsLabel: jiant.label,
+                container: jiant.container,
+                pager: jiant.pager
+            }
+        },
+        templates: {
+            searchResultTm: {
+                text: jiant.label,
+                url: jiant.data
+            }
+        },
+        models: {
+            searchFilter: {
+                jRepo: {},
+                s: function(val) {},
+                sort: function(val) {}
+            }
+        }
+    };
+    .....
+    var fn = jiant.xl.pageableFilterableSortable(app.states.main, app.views.searchResultsView.container,
+        app.views.searchResultsView.pager, app.templates.searchResultTm, app.ajax.search, app.models.searchFilter, null,
+        app.views.searchResultsView.noResultsLabel, null);
+    fn();
+    app.states.main.go(3); // 3-я страница результатов
+</pre>
+
+
+<h4>Кнопка записи</h4>
+
+<pre class="brush: js">
+    saveCtl: function(ctl, saveFn, markerElem, markerText)
+</pre>
+
+Представляет собой некое поведение интерфейса - кнопка, меняющая внешний вид при выполнении действий
+и возвращающая свой вид при их завершении. Также добавляет флаг disabled на кнопку во избежание двойных щелчков.
+<p></p>
+Параметры
+<ul>
+    <li><b>ctl</b> - собственно сама кнопка или другой элемент интерфейса</li>
+    <li><b>saveFn</b> - функция, выполняющая действие. Например, аякс вызов на сервер, или другое действие</li>
+    <li><b>markerElem</b> (опционально, по умолчанию: сама кнопка) - элемент, визуально представляющий действие
+        в процессе
+    </li>
+    <li><b>markerText</b> (опционально, по умолчанию: "saving") - текст, который
+        показывается/прячется на маркере, пока действие в процессе
+    </li>
+</ul>
+
+Пример
+<pre class="brush: js">
+    jiant.xl.saveCtl(app.views.userForm.saveCtl, app.ajax.saveUser, app.views.userForm.saveCtl, "Saving ...")()
+</pre>
+
+
+<h4>Постраничное содержимое</h4>
+
+<pre class="brush: js">
+    pagedContent: function(state, ajax, container, pager, template, perItemCb, noItemsLabel, onCompleteCb, useSorting)
+</pre>
+
+Отрисовывает содержимое постранично, предоставляет навигацию по страницам
+<p></p>
+Параметры:
+<ul>
+    <li><b>state</b> - состояние приложения, отрисовка страницы происходит на начало состояния.
+        Состояние должно принимать номер страницы как 1й параметр и параметр для сортировки как 2й:
+        <b>app.states.main.go(2, "name")</b>, при этом сортировка используется если установлен в <b>true</b>
+        параметр <b>useSorting</b>
+    </li>
+    <li><b>ajax</b> - аякс или другая функция, возвращающая данные через коллбэк.
+        Первый параметр функции будет <b>pageable</b>, последний - собственно коллбэк принимающий данные
+        (см. пример ниже). Когда нужно передать дополнительные параметры на сервер - используйте
+        прокси функцию (см. пример)
+    </li>
+    <li><b>container</b> - контейнер для отрисовки данных, элемент виджета</li>
+    <li><b>pager</b> (опционально) - контейнер навигации по страницам. При объявлении объявите элемент как jiant.pager.
+        Если нужно несколько пейджеров (например, над и под списком) - просто повесьте класс на оба div'а, так что
+        элемент будет ссылаться на 2 HTML элемента
+    </li>
+    <li><b>template</b> - шаблон для отрисовки отдельного объекта данных</li>
+    <li><b>perItemCb</b> (опционально) - коллбэк, вызывается для каждого элемента, <b>perItemCb(obj, elem)</b>
+        - принимает объект данных и сгенерированную jQuery обертку HTML элемента
+    </li>
+    <li><b>noItemsLabel</b> (опционально) - маркер, показываемый если список пуст (элемент виджета)</li>
+    <li><b>onCompleteCb</b> (опционально) - коллбэк, вызываемый когда весь список отрисован, принимает как параметр
+        весь объект данных, который вернула функция получения данных
+    </li>
+    <li><b>useSorting</b> (опционально) - добавлять ли сортировку к серверному вызову, в spring-совместимом виде</li>
+</ul>
+
+Пример
+<pre class="brush: js">
+    var pc = jiant.xl.pagedContent(app.states.contactList, function(pageable, cb) {
+            app.ajax.getContacts(selectedUserId, pageable, cb)
+    }, app.views.contacts.container, app.views.contacts.pager, app.templates.contactTm, null,
+    app.views.contacts.noContactsLabel);
+    pc();
+</pre>
+
+
+<h4>X Опция</h4>
+
+<pre class="brush: js">
+    xOption: function(allSelector, filterFn)
+</pre>
+<p></p>
+Параметры:
+<ul>
+    <li><b>allSelector</b> - </li>
+    <li><b>filterFn</b> - </li>
+</ul>
+Возвращает
+<p></p>
+Пример
+<pre class="brush: js">
+    jiant.xl.xOption(allSelector, filterFn)
+</pre>
+
+
+<h4>Псевдо дропдаун</h4>
+
+<pre class="brush: js">
+    pseudoDropdown: function(ctl, label, dropPanel, dropContainer, optionTm)
+</pre>
+<p></p>
+Параметры:
+<ul>
+    <li><b>ctl</b> - </li>
+    <li><b>label</b> - </li>
+    <li><b>dropPanel</b> - </li>
+    <li><b>dropContainer</b> - </li>
+    <li><b>optionTm</b> - </li>
+</ul>
+Возвращает
+<p></p>
+Пример
+<pre class="brush: js">
+    jiant.xl.pseudoDropdown(ctl, label, dropPanel, dropContainer, optionTm)
+</pre>
+
+
+<h4>Псевдо селектор</h4>
+
+<pre class="brush: js">
+    pseudoSelect: function(arrElems, arrVals, cb, selectedIdx, selectClass)
+</pre>
+Эмулирует поведение элемента с возможностью выбрать один элемент из нескольких. Все параметры опциональные,
+так как можно добавлять элементы после создания.
+<p></p>
+Параметры:
+<ul>
+    <li><b>arrElems</b> (опционально) - набор элементов интерфейса, которые должны участвовать в выборе</li>
+    <li><b>arrVals</b> (опционально) - набор сопоставленных значений, возможно также элементов интерфейса</li>
+    <li><b>cb</b> (опционально) - функция отрабатывающая при смене значения, по умолчанию
+        - показывает выбранное значение и прячет предыдущее. Таким образом, эмулируется поведение таббед панели</li>
+    <li><b>selectedIdx</b> (опционально) - выбранное по умолчанию значение </li>
+    <li><b>selectClass</b> (опционально) - CSS класс, который навешивается на выбранный элемент (не значение)</li>
+</ul>
+Возвращает объект, который можно использовать для добавления пар элемент-значение:
+<pre class="brush: js">
+    {
+        add: function(elem, val, cb, selected), // добавляет пару элемент-значение, использует для них переданный коллбэк,
+                                                // флаг selected определяет выбраны ли они при добавлении
+        selected: function([val]), // возвращает текущее выбранное значение или устанавливает его,
+                                   // есть баг - не переключает CSS класс на выбранном элементе
+        setSelectClass: function(cls) // устанавливает CSS класс на выбранном элементе,
+                                      // баг - не снимает старый класс при смене на новый
+    }
+</pre>
+
+<p></p>
+Пример
+<pre class="brush: js">
+    var app = {
+        views: {
+            main: {
+                tabCtls: jiant.collection,
+                tabPanels: jiant.collection
+            }
+        }
+    };
+    ...
+    var view = app.views.main;
+    var select = jiant.xl.pseudoSelect(view.tabCtls, view.tabPanels, null, 0, "active);
+</pre>
+
+
+<h4>Подтверждаемое действие Бутстрап</h4>
+
+<pre class="brush: js">
+    confirmedActionBs: function(ctl, confirmDialogView, dialogOkCtl, actionFn, preCb)
+</pre>
+По нажатию на контрол интерфейса подтверждает выполнение действия и затем выполняет его в случае подтверждения,
+работает в среде Bootstrap.
+<p></p>
+Параметры:
+<ul>
+    <li><b>ctl</b> - контрол по нажатию на который должно выполняться действие</li>
+    <li><b>confirmDialogView</b> - диалог, показываемый для подтверждения</li>
+    <li><b>dialogOkCtl</b> - кнопка подтверждения действия, расположенная на диалоге</li>
+    <li><b>actionFn</b> - выполняемое действие</li>
+    <li><b>preCb</b> (опционально) - коллбэк, выполняемый после нажатия на контрол, но до показа диалога подтверждения</li>
+</ul>
+Пример
+<pre class="brush: js">
+    var app = {
+        views: {
+            mainView: {
+                doSmthCtl: jiant.ctl
+            },
+            confirmationDialog: {
+                okCtl: jiant.ctl
+            }
+        }
+    };
+    .....
+    var action = function() {
+        alert("doing smth");
+    };
+    var fn = jiant.xl.confirmedActionBs(app.views.mainView.doSmthCtl, app.views.confirmationDialog, app.views.confirmationDialog.okCtl, action);
+    fn();
+</pre>
+
+
+<h4>Пример</h4>
+
+Некая кнопка, отсылающая приложение в определенное состояние:
+
+<pre class="brush: js">
+    ctl2state: function(ctl, state, selectedCssClass) {
+        return function() {
+            ctl.click(function() {
+                state.go();
+            });
+            selectedCssClass && state.start(function() {
+                ctl.addClass(selectedCssClass);
+            });
+            selectedCssClass && state.end(function() {
+                ctl.removeClass(selectedCssClass);
+            });
+        };
+    }
+</pre>
+
+3 параметра:
+<ul>
+    <li>кнопка <b>ctl</b>, объявленная как некий элемент виджета</li>
+    <li>состояние <b>state</b>, объявленное как некое состояние приложения</li>
+    <li><b>selectedCssClass</b> - строка, css класс, добавляемый к кнопке когда приложение
+        находится в заданном состоянии
+    </li>
+</ul>
+
+Теперь используем:
+
+<pre class="brush: js">
+    jiant.xl.ctl2state(footer.showActiveCtl, app.states.active, cls)();
+    jiant.xl.ctl2state(footer.showCompletedCtl, app.states.completed, cls)();
+    jiant.xl.ctl2state(footer.showAllCtl, app.states[""], cls)();
+</pre>
+
+Добавляем к приложению готовую логику любой сложности всего одной строкой
+
+<h4>Светлое будущее</h4>
+
+Каждый раз, разрабатывая какую-то концепцию - сохраняем ее для будущего использования
+как некий eXtra Logic рецепт. В следующий раз вы получите больше готовой программной логики
+вместо просто переписывания заново.
+<p></p>
+Это словно jQuery плагины, но не для визуальных компонентов, а для программных решений

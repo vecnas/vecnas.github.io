@@ -1,0 +1,313 @@
+<h4>Серверные вызовы</h4>
+
+Jiant.Ajax обеспечивает удобный интерфейс для работы с сервером через ajax,
+а также автоматическую конвертацию всех основных типов данных для передачи на сервер.
+Чтобы начать использовать jiant.Ajax, добавьте секцию <b>ajax</b> в спецификацию приложения:
+
+<pre class="brush: js">
+    var myApp = {
+
+        ajax: {
+            setUserName: function(userId, firstName, lastName, cb) {},
+            searchUsers: function(searchString, cb) {}
+        }
+
+    }
+</pre>
+
+В приведенном примере имеем 2 серверных вызова. Имя метода по умолчанию совпадает с URI для вызова,
+имена параметров функции должны быть равны именам параметров запроса.
+После вызова <b>jiant.bindUi(myApp)</b> - данные определения замещаются настоящими аяксовыми вызовами.
+Чтобы их использовать - достаточно просто вызывать как обычные функции в рамках <b>onUiBound</b>.
+Данные с сервера передаются как параметр в коллбэк (последний параметр при объявлении функции).
+
+<pre class="brush: js">
+    myApp.ajax.setUserName(12344, "John", "Smith", function(result) {});
+</pre>
+
+Данный вызов сгенерирует (выделены функция из определения и имена параметров):
+
+<pre>
+    <b>setUserName</b>?<b>userId</b>=12344&<b>firstName</b>=John&<b>lastName</b>=Smith
+</pre>
+
+<h4>Параметры</h4>
+
+Сгенерированные ajax функции могут принимать следующие параметры:
+<ul>
+  <li>
+    Любые простые типы, строки, числа
+    <pre class="brush: js">
+      app.ajax.test("finita");
+    </pre>
+    результат:
+    <pre>
+        /test?param=finita
+    </pre>
+  </li>
+  <li>
+    Сложные объекты, включая вложенные
+    <pre class="brush: js">
+      app.ajax.test({
+          "a": "1",
+          "b": 2,
+          "c": {
+              "d": 3,
+              "e": 4
+          }
+      });
+    </pre>
+    результат:
+    <pre>
+      /test?a=1&b=2&c.d=3&c.e=4
+    </pre>
+  </li>
+  <li>
+    Сложные объекты в виде map, в этом случае следует добавить специальный флаг в передаваемый объект
+    и объекты будут передаваться как <b>a[b]</b> а не <b>a.b</b>:
+    <pre class="brush: js">
+      app.ajax.test({
+          "a": "1",
+          "b": 2,
+          "c": {
+              _jiantFlagSubmitAsMap: true,
+              "d": 3,
+              "e": 4
+          }
+      });
+    </pre>
+    результат:
+    <pre>
+      /test?a=1&b=2&c%5Bd%5D=3&c%5Be%5D=4
+    </pre>
+    Этот флаг доступен через jiant.flags.ajaxSubmitAsMap переменную:
+    <pre class="brush: js">
+      var data = {
+          "a": "1",
+          "b": 2,
+          "c": {
+              "d": 3,
+              "e": 4
+          }
+      };
+      data.c = jiant.flags.ajaxSubmitAsMap;
+      app.ajax.test(data);
+    </pre>
+  </li>
+  <li>
+    Значение null передается пустой строкой, undefined не передается
+    <pre class="brush: js">
+      app.ajax.test({"a": null, "b": undefined});
+    </pre>
+    результат:
+    <pre>
+      /test?a=
+    </pre>
+  </li>
+  <li>
+    Массивы
+    <pre class="brush: js">
+      app.ajax.test([1, 2, "test"]);
+    </pre>
+    результат:
+    <pre>
+      /test?param=1&param=2&param=test
+    </pre>
+  </li>
+  <li>
+    Пустой массив вызовет просто обращение на сервер без параметров
+    <pre class="brush: js">
+      app.ajax.test([]);
+    </pre>
+    результат:
+    <pre>
+      /test?
+    </pre>
+  </li>
+  <li>
+    Модели jiant
+    <pre class="brush: js">
+      models: {
+        single: {
+          age: function(val) {},
+          name: function(val) {},
+          map: function(val) {}
+        }
+      }
+      ............
+      var m = app.models.single;
+      m.age(12);
+      m.name("John");
+      m.map({"m2Is": m2});
+      ............
+      app.ajax.test(m);
+    </pre>
+    результат:
+    <pre>
+      /test?age=12&name=John&map.m2Is.supp=supplierMe&map.m2Is.field=11&map.m2Is.field2=22
+    </pre>
+  </li>
+  <li>
+    А также комбинации вышеперечисленных сущностей, например, модель, содержащая сложный объект или массив моделей и так далее
+  </li>
+</ul>
+
+<h4>Передача объектов моделей</h4>
+
+Ajax функции автоматически разбирают объекты моделей и передают их на сервер. При этом они следуют нескольким правилам:
+<ul>
+  <li>Во избежание вызова методов модели, меняющих ее состояние, передаются только геттеры и сапплаеры модели, а именно
+    - автоматически сгенерированные методы доступа к полям, и функции начинающиеся с return.
+    Все эти методы отмечены флагами jiant_supplier и jiant_accessor</li>
+  <li>Методы модели, объявленные как transient, не передаются на сервер</li>
+  <li>Модель также можно отметить флагом jiant.flags.ajaxSubmitAsMap, чтобы она передавалась на сервер как <b>a[b]</b> а не <b>a.b</b> </li>
+  <li></li>
+</ul>
+
+<h4>URI и именование параметров</h4>
+По умолчанию URI равняется имени функции, а имена параметров запроса - именам параметров функции.
+Способы переопределения URI описаны немного ниже. Если параметров запроса очень много,
+или же их имена нельзя использовать как имена параметров функции, используйте объект для отправки на сервер:
+
+<pre class="brush: js">
+    myApp.ajax.sendData({
+        "any.name.could.be.used.here": 1,
+        "23even not valid javascript identifier": 2
+    });
+</pre>
+
+<h4>Коллбэки и данные с сервера</h4>
+
+Коллбэк-функция вызывается после выполнения аяксового запроса на сервер.
+Ей передается один параметр - результаты вызова, полученные с сервера.
+Коллбэк вызывается в случае успешного завершения вызова.
+В случае ошибки - вызывается функция обработки ошибки (см. далее).
+
+Коллбэк передается как последний параметр вызова:
+
+<pre class="brush: js">
+    myApp.ajax.setUserName(687, "Mary", "Black", function(someServerResponse) {
+        alert(someServerResponse);
+    });
+</pre>
+
+После получения данных с сервера, Jiant пытается разобрать их как JSON.
+В случае неудачи разбора в JSON - передается исходная строка. В обоих случаях результат передается коллбэку
+как единственный параметр функции.
+В случае если с сервера приходит сообщение об ошибке (статус код не 200) - коллбэк не вызывается.
+По умолчанию все ошибки печатаются в консоль. Можно также определить свой собственный обработчик ошибок:
+<p></p>
+<ol>
+    <li><b>jiant.handleErrorFn</b> - определить функцию, одна на весь jiant,
+        принимает 1 параметр - XHR.responseText:
+<pre class="brush: js">
+    jiant.handleErrorFn = function(errText) {
+        alert("Server returned error: " + errText);
+    }
+</pre>
+    </li>
+    <li>
+        или передать функцию обработки ошибок в вызов на сервер, как еще один параметр после коллбэка:
+<pre class="brush: js">
+    myApp.ajax.setUserName(12344, "John", "Smith", function(result) {}, function(error) {
+        show2user("Server is broken!");
+    });
+</pre>
+    </li>
+</ol>
+
+Таким образом, правило следующее - если два последних параметра серверного вызова, оба функции - то первый
+это успешный коллбэк и второй - обработчик ошибок. Если только последний параметр вызова - функция,
+то это успешный коллбэк.
+<p></p>
+Если ответ сервера не имеет значения - можно вообще не передавать коллбэков, например:
+
+<pre class="brush: js">
+    myApp.ajax.deleteAllAndIgnoreConsequences();
+</pre>
+
+Наличие коллбэка в определении функции опционально, рекомендовано для подсказок при написании кода.
+Любые параметры определения являются опциональными, например:
+
+<pre class="brush: js">
+    var myApp = {
+        ajax: {
+            doStaff: function(id, name, birthday, cb) {}
+        }
+    }
+
+    myApp.ajax.doStaff(62345); // will produce /doStaff?id=62345
+    myApp.ajax.doStaff(62345, "works"); // will produce /doStaff?id=62345&name=works
+</pre>
+
+<h4>Конфигурация</h4>
+
+Следующие параметры конфигурации доступны на уровне приложения:
+<pre class="brush: js">
+  var myApp = {
+      ....
+      ajaxPrefix: "http://myserver.com/",
+      ajaxSuffix: ".do",
+      crossDomain: true/false
+</pre>
+
+<b>crossDomain</b> следует выставить в случае если приложение работает с сервером на другом домене.
+Например, это подгружаемый на страницу чат. В этом случае все серверные вызовы получат дополнительные настройки
+для кроссдоменной работы.
+
+<p></p>
+
+Предположим, урл для вызова на сервер равен <b>"myUrl.jsp"</b>,
+мы не можем использовать эту строку как имя метода. В этом случае есть 3 возможности:
+<p></p>
+<ol>
+    <li>Вернуть урл для вызова из функции определения:
+<pre class="brush: js">
+    var myApp = {
+        ajax: {
+            setUserName: function(userId, firstName, lastName, cb) { return "/myapp1/set.php"; },
+            searchUsers: function(searchString, cb) { return "/myapp2/search"; }
+        }
+    }
+</pre>
+    </li>
+    <li>
+        Установить префикс и/или суффикс (<b>ajaxPrefix</b>, <b>ajaxSuffix</b>) для приложения:
+<pre class="brush: js">
+    var myApp = {
+        id: "someApp",
+        ajaxPrefix: "some cross domain url",
+    }
+</pre>
+    </li>
+    <li>Установить <b>jiant.AJAX_PREFIX</b> и <b>jiant.AJAX_SUFFIX</b>, что имеет влияние на jiant в целом:
+  <pre class="brush: js">
+    jiant.AJAX_PREFIX = "/my_custom_root/";
+    jiant.AJAX_SUFFIX = ".asp";
+  </pre>
+      тогда вызов из предыдущего примера становится (подчеркнуты префикс и суффикс)
+      <pre>
+        <u>/my_custom_root/</u>setUserName<u>.asp</u>?userId=12344&firstName=John&lastName=Smith
+      </pre>
+    </li>
+</ol>
+
+Методы могут смешиваться, приоритеты следующие - вначале смотрим возвращаемое значение функции,
+затем определение приложения, затем глобальную настройку jiant.
+
+<h4>Детали реализации</h4>
+
+Для каждой функции генерируется следующий аякс обработчик:
+
+<pre class="brush: js">
+    $.ajax(url, {data: callData, traditional: true ...
+</pre>
+
+Любые вызовы <b>jQuery ajaxSetup</b> влияют на выполнение аяксовых вызовов.
+Например, конфигурация для кроссдомена или выполнение запросов используя POST а не GET.
+<p></p>
+Параметр <b>antiCache3721=current time</b> добавляется к каждому вызову во избежание кэширования
+<p></p>
+Для форм - <b>submitForm</b> может использоваться чтобы отослать форму на сервер.
+Этот метод также использует текущие настройки <b>ajaxPrefix</b>, <b>ajaxSuffix</b>, <b>crossdomain</b>.
+

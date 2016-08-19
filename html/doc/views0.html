@@ -1,0 +1,423 @@
+<h4>Виджеты</h4>
+
+Виджеты описывают идентифицируемые части интерфейса, такие как "основная панель", "тулбар", "форма редактирования пользователя".
+Каждый из них содержит набор мелких элементов, таких как "поле ввода имени", "кнопка записи", "картинка аватара".
+На стадии проектирования они описываются в файле определения приложения.
+Параллельно для них создается "реализация" в HTML коде.
+Наконец во время связывания приложения Jiant сопоставляет описание в скрипте, находит для него реализацию в HTML.
+После этого виджеты готовы к использованию в скрипте, и обо всех ошибках пользователь извещается.
+
+<p></p>
+
+Чтобы начать использовать Jiant.Views - добавьте секцию <b>views</b> в определение приложения.
+Эта секция содержит список виджетов, каждый виджет содержит список элементов (компонентов):
+
+<pre class="brush: js">
+    var app = {
+        id: "viewsApp",
+
+        views: {
+
+            mainLayout: {
+                login: jiant.ctl,
+                centralPane: jiant.container
+            },
+
+            toolbar: {
+                buttons: jiant.collection
+            }
+
+        }
+    }
+
+    .....
+
+    jiant.app(app);
+</pre>
+
+После вызова <b>jiant.app()</b> (или <b>jiant.bindUi()</b>) - можно использовать,
+
+<pre class="brush: js">
+    app.views.mainLayout.login.click(function() {} );
+</pre>
+
+<h4>Объявление виджетов</h4>
+
+Объявляйте виджеты не думая об их реализации. Будьте абсолютно абстрактны, описывайте их словно устно:
+<i>"экран редактирования содержит поле ввода имени, кнопку для записи, кнопку чтобы вернуться назад"</i>
+
+<pre class="brush: js">
+    views: {
+        editView: {
+            firstNameInput: jiant.input,
+            saveButton: jiant.ctl,
+            backButton: jiant.ctl,
+            allButtons: jiant.collection // коллекция "все кнопки" содержит и кнопку записи и кнопку возврата
+        }
+    }
+</pre>
+
+Объявите столько виджетов сколько хотите. И снова - не думайте о реализации, некоторые виджеты в итоге могут
+ссылаться на одинаковые элементы интерфейса с разных точек зрения
+
+<h4>Объявление элементов</h4>
+
+Обычно тип элемента (jiant.ctl, jiant.input) носит скорее характер документации, его можно объявлять даже как 1:
+
+<pre class="brush: js">
+    someCtl: 1
+</pre>
+
+Но несколько типов элементов имеют специальное значение. Смотрите раздел Элементы виджетов для подробностей.
+Есть также специальные объявления не-элементов, а именно -
+
+<h4>Мета объявление</h4>
+
+<b>jiant.meta</b> - означает "это не элемент интерфейса", и предназначен для хранения мета-информации о виджете.
+Он не привязывается к элементу html. Например, можно отметить виджеты
+
+<pre class="brush: js">
+    dialog: jiant.meta
+</pre>
+
+и затем после связывания интерфейса выполнить для них
+
+<pre class="brush: js">
+    $.each(app.views, function(idx, view) {
+        view.dialog && app.logic.dialogs.init(view);
+    });
+</pre>
+
+<h4>Переопределение реализации</h4>
+
+Второе специальное объявление - <b>appPrefix</b>, в данном случае имеет значение не тип, а имя объявления.
+Оно переопределяет <b>appPrefix</b> приложения и может использоваться для изменения внешней реализации виджета.
+Например, если загружается html из внешнего источника и какой-то виджет хочется внешне отрисовать совсем по-другому.
+Выставьте <b>appPrefix</b> на виджете и добавьте свою html реализацию:
+
+<pre class="brush: js">
+    extApp.views.profileView.appPrefix="my_";
+</pre>
+...
+<pre class="brush: xml">
+    &lt;div id="my_profileView">....
+</pre>
+
+Если рассматривать объявление виджета в JSON как интерфейс, и HTML код как реализацию
+- вы используете свою реализацию интерфейса вместо стандартной.
+
+<h4>Встроенная реализации</h4>
+Еще одно специальное объявление - <b>impl</b> - полностью задает реализацию данного виджета, в формате html:
+<pre class="brush: xml">
+    views: {
+        selectUser: {
+            impl: "&lt;select/&gt;"
+        }
+    }
+
+    .....
+
+    app.views.main.selectContainer.append(app.views.selectUser);
+</pre>
+В этом случае как правило нужно данный виджет затем куда-нибудь добавить, как в приведенном примере
+
+<h4>Реализация</h4>
+
+Добавьте HTML реализацию для каждого виджета, используя id и класс селекторы (смотрите также базовые принципы).
+Например
+
+<pre class="brush: xml">
+    &lt;div id="_editView">
+        First name: &lt;input class="_firstNameInput"/>
+        &lt;button class="_saveButton _allButtons">Save&lt;/button>
+        &lt;a href="/" class="_backButton _allButtons">Back&lt;/a>
+    &lt;/div>
+</pre>
+
+Кстати, виджеты могут перекрываться в HTML произвольным образом, тем самым демонстрируя разные аспекты и их пересечение.
+
+<h4>Использование</h4>
+
+После связывания приложения посредством <b>bindUi</b> - все виджеты привязываются к соответствующим
+jQuery оберткам по идентификатору, и все элементы виджетов привязываются к jQuery оберткам по классу.
+Теперь это обычные jQuery объекты, например (jQuery функциональность выделена):
+
+<pre class="brush: js">
+    var mainView = app.views.mainView,
+    editView = app.views.editView;
+
+    mainView.editCtl.<b>click</b>(function() {
+        mainView.container.<b>append</b>(editView);
+        editView.<b>fadeIn</b>();
+    });
+</pre>
+
+<h4>Привязка к данным</h4>
+
+Каждый виджет содержит функцию <b>propagate(data)</b>. Эта функция связывает элементы виджета с полями данных.
+Следующие правила используются: <b>input</b>, <b>textarea</b> - через вызов <b>val()</b>,
+<b>image</b> - через <b>src</b> атрибут, остальные элементы - через вызов <b>html()</b>.
+Используется настоящий html тип элемента, независимо от того как он объявлен в спецификации. Например:
+
+<pre class="brush: js">
+    // объявление
+    mainView: {
+        form: jiant.form,
+        ctl: jiant.ctl,
+        face: jiant.image,
+        name: jiant.input,
+        sex: jiant.label,
+        notes: jiant.label,
+        id: jiant.input
+    }
+</pre>
+
+<pre class="brush: xml">
+    &lt;!-- реализация -->
+    &lt;div id="_mainView">
+        &lt;form action="save" method="post" class="_form">
+            &lt;img class="_face"/>
+
+            &lt;div class="_sex">&lt;/div>
+            &lt;input class="_name"/>
+            &lt;input class="_id" type="hidden"/>
+            &lt;textarea class="_notes">&lt;/textarea>
+            &lt;a class="_ctl">Save&lt;/a>
+        &lt;/form>
+    &lt;/div>
+</pre>
+
+<pre class="brush: js">
+    // предположим, getUserData вернул данные:
+    userData: {
+        id: 754,
+        sex: "male",
+        name: "John",
+        notes: "tro-lo-lo",
+        face: "http://images.com/1.jpg"
+    }
+
+    // остается отрисовать их на виджете
+    myapp.ajax.getUserData(userId, function(userData) {
+        myapp.views.mainView.propagate(userData);
+    });
+</pre>
+
+<pre class="brush: xml">
+    &lt;!-- теперь виджет выглядит следующим образом -->
+    &lt;div id="_mainView">
+        &lt;form action="save" method="post" class="_form">
+            &lt;img class="_face" src="http://images.com/1.jpg"/>
+
+            &lt;div class="_sex">male&lt;/div>
+            &lt;input class="_name" value="John"/>
+            &lt;input class="_id" value="754" type="hidden"/>
+            &lt;textarea class="_notes">tro-lo-lo&lt;/textarea>
+            &lt;a class="_ctl">Save&lt;/a>
+        &lt;/form>
+    &lt;/div>
+</pre>
+
+<pre class="brush: js">
+    // отошлем форму
+    myapp.views.mainView.ctl.click(function() {
+        myapp.views.mainView.form.submitForm(function() { alert("saved"); });
+    });
+</pre>
+
+<h4>Привязка к модели</h4>
+<b>propagate()</b> также связывает виджеты (и шаблоны) с моделями. В этом случае дополнительно модель
+прослушивается на предмет изменений и виджет немедленно обновляется, если выставлен флаг bind
+
+<pre class="brush: js">
+    view.propagate(model, bind, reverseBind)
+</pre>
+
+<ul>
+    <li>
+        <b>bind</b> - <b>true</b> включает прослушивание изменений,
+        <b>false</b> - использует текущее состояние модели без дальнейших обновлений
+    </li>
+    <li>
+        <b>reverseBind</b> - включает обратное отображение, изменения на виджете отражаются обратно в модель
+        (работает для полей ввода, чекбоксов, селектов)
+    </li>
+</ul>
+
+<pre class="brush: js">
+    views: {
+        userView: {
+            name: jiant.label,
+            email: jiant.label
+        }
+    },
+
+    models: {
+        user: {
+            name: function(val) {},
+            email: function(val) {},
+        }
+    }
+    .....
+    views.userView.propagate(models.user);
+    models.user.name("Another name"); // HTML обновлен
+</pre>
+
+<h4>view.propagate()</h4>
+Все виджеты и результаты разбора шаблонов <b>tm.parseTemplate(data)</b> имеют функцию <b>propagate</b>.
+Этот метод служит для заполнения виджета данными. Связывание происходит по ключам, например если элемент объявлен как
+<b>nameInput</b>, то в переданных для заполнения данных будет также искаться ключ <b>nameInput</b>.
+Полная сигнатура метода <b>propagate</b>
+<pre class="brush: js">
+    propagate(data, subscribe4updates, reverseBinding, mapping)
+</pre>
+<ul>
+    <li>
+        <b>data</b> - в качестве передаваемых данных может служить просто javascript объект или объект модели jiant,
+        в обоих случаях связывание с элементами происходит по именам - ключам объекта или функциям модели
+    </li>
+    <li>
+        <b>subscribe4updates</b> - данный параметр имеет смысл только для моделей.
+        Если он выставлен и равен <b>true</b>, то виджет подписывается на изменения модели
+        и любое изменение значения поля будет немедленно отражено на интерфейсе
+    </li>
+    <li>
+        <b>reverseBinding</b> - данный параметр имеет смысл только для моделей и только для тех полей
+        которые привязаны к полям ввода, имеющим событие "change". Если он выставлен и равен <b>true</b>,
+        то изменения на интерфейсе будут отражаться в модель
+    </li>
+    <li>
+        <b>mapping</b> - в случае если одно поле модели или объекта должно иметь несколько представлений
+        в рамках виджета, можно задать маппинг имен
+        <pre class="brush: js">
+            views: {
+                main: {
+                    flag: jiant.cssFlag,
+                    name: jiant.input
+                }
+            }
+            .....
+            app.views.main.propagate({name: "Tom"}, false, false, {flag: "name"});
+        </pre>
+        В данном примере поле объекта <b>name</b> будет отражено как в поле ввода <b>name</b>, так и во флаге <b>flag</b>.
+        Маппинг полей работает для объектов и моделей, а также для связывания данных в обе стороны.
+    </li>
+</ul>
+
+<h4>Специальный отрисовщик</h4>
+Для специального представления данных на элементе, ему может присваиваться специальный отрисовщик:
+<pre class="brush: js">
+    customRenderer: function(modelObject, view, value, isUpdate);
+</pre>
+<ul>
+    <li><b>modelObject</b> - объект данных или модели</li>
+    <li><b>view</b> - ссылка на виджет (не на элемент)</li>
+    <li><b>value</b> - текущее значение поля объекта или модели</li>
+    <li><b>isUpdate</b> - флаг, показывающий первый ли это вызов или последующие обновления
+        (полезен, например, для анимации)</li>
+</ul>
+
+Чтобы установить <b>customRenderer</b> - присвойте его элементу:
+
+<pre class="brush: js">
+    views.userView.email.customRenderer = function(...) { ... }
+</pre>
+
+<b>customRenderer</b> может использоваться для отрисовки прогресса, подсветки и так далее - что угодно.
+При вызове <b>propagate()</b> - он будет выполнен для всех полей имеющих <b>customRenderer</b>, даже если их значения
+не переданы или не изменились.
+
+<p></p>
+Также доступен <b>customRenderer</b> для самого виджета.
+
+
+<h4>Типы элементов виджетов</h4>
+Доступные стандартные типы элементов виджетов описаны в соответствующей секции.
+<p></p>
+Объявление элемента виджета возможно следующими способами
+<pre class="brush: js">
+    view: {
+        elem: jiant.input, //стандартный тип
+        custom: "custom0", // пользовательский тип, см. ниже
+        optional: [jiant.optional, jiant.input] // опциональный элемент. см. ниже
+    }
+</pre>
+
+<h4>Пользовательский тип элемента виджета</h4>
+Помимо стандартных типов элементов виджетов, можно задавать свои типы. В этом случае пользователь задает функцию,
+которая будет вызывана для элемента данного типа при связывании виджета
+<pre class="brush: js">
+    // вызываем до связывания приложения
+    jiant.registerCustomType("inputFloatRu0", function (elem) {
+        elem.change(function () {
+            elem.val(elem.val().replace(",", "."))
+        });
+    });
+    // объявляем элемент данного типа
+    views: {
+        editView: {
+            income: "inputFloatRu0",
+            expense: "inputFloatRu0",
+            ok: jiant.ctl
+        }
+    }
+</pre>
+
+<h4>Опциональные элементы виджетов</h4>
+При объявлении элемента можно объявить его опциональным, в этом случае если элемент отсутствует при проверке,
+не будет сгенерирована ошибка. Объявить можно любым из двух способов - через вызов функции или передачу
+флага <b>jiant.optional</b> в массиве
+<pre class="brush: js">
+    views: {
+        editView: {
+            income: [jiant.optional, "inputFloatRu0"],
+            expense: jiant.optional(jiant.input),
+            ok: jiant.ctl
+        }
+    }
+    .....
+    // при использовании следует проверить на наличие
+    if (app.views.editView.income) {
+    ......
+</pre>
+При использовании массива в качестве типа элемента - можно передать только один тип и флаг optional,
+два типа использовать нельзя, будет использован первый попавшийся.
+
+<h4>Логгирование</h4>
+
+Если имя виджета или элемента пересекается с существующей jQuery функцией, в консоль печатается:
+<pre class="brush: xml">
+    unsafe extension: extend already defined in base jQuery, shouldn't be used
+</pre>
+
+Если в HTML отсутствует реализация виджета или каких-то его элементов, Jiant печатает ошибку в консоль (всегда)
+и показывает суммарный алерт со списком ошибок, если включен <b>DEV_MODE</b>
+
+<h4>Детали реализации</h4>
+
+На стадии связывания каждый виджет привязывается к HTML элементу с идентификатором равным appPrefix + имя виджета.
+<p></p>
+Каждый элемент привязывается к HTML элементу с классом равным appPrefix + имя элемента
+(и расположенному внутри реализации виджета). Например:
+
+<pre class="brush: xml">
+    &lt;div id="_mainView">
+        &lt;button class="_ctl">
+    &lt;/div>
+</pre>
+
+<pre class="brush: js">
+    var app = {
+        views: {
+            mainView: {
+                ctl: jiant.ctl
+            }
+        }
+    };
+
+    jiant.app(app);
+</pre>
+
+Один HTML элемент может быть привязан ко многим элементам спецификации или к виджету и элементу одновременно
+(через id и класс). Во время <b>bindUi()</b> вызывается <b>jQuery.find()</b> и результат добавляется к определению
+используя <b>jQuery.extend()</b>

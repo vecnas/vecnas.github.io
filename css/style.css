@@ -1,0 +1,119 @@
+#_main ._subnav {
+  position: fixed;
+  right: 0;
+  top: 0;
+  border: 4px solid #7f8185;
+  background: #333;
+  color: #ccc;
+  padding: 8px;
+  width: 256px;
+}
+
+#_main ._subnav ._label {
+  text-decoration: underline;
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+#_main ._subnav ._label:nth-child(1) {
+  margin-bottom: 16px;
+}
+
+div.syntaxhighlighter {
+  width: auto !important;
+}
+
+#_main {
+}
+
+#_main ._container {
+  padding: 0 312px;
+}
+
+.navOuter {
+  float: left;
+}
+
+.nav._container {
+  padding-left: 30px;
+  font-size: 90%;
+}
+
+.nav._container a {
+  padding: 5px;
+}
+
+#_nav {
+  width: 256px;
+}
+
+#_nav .selected > a {
+  color: #ffeeee;
+}
+
+#_nav li ._container {
+  display: none;
+}
+
+#_nav li.selected ._container {
+  display: block;
+}
+
+#_nav a {
+    cursor: pointer;
+}
+
+h3, h4 {
+  padding: 32px 16px 16px 16px;
+  margin: 0;
+}
+
+#_subnav {
+    margin-top: 60px;
+}
+
+#_subnav li {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .navbar-collapse {
+    height: auto;
+    border-top: 0;
+    box-shadow: none;
+    max-height: none;
+    padding-left:0;
+    padding-right:0;
+  }
+  .navbar-collapse.collapse {
+    display: block !important;
+    width: auto !important;
+    padding-bottom: 0;
+    overflow: visible !important;
+  }
+  .navbar-collapse.in {
+    overflow-x: visible;
+  }
+
+.navbar
+{
+	max-width:300px;
+	margin-right: 0;
+	margin-left: 0;
+}
+
+.navbar-nav,
+.navbar-nav > li,
+.navbar-left,
+.navbar-right,
+.navbar-header
+{
+  float:none !important;
+}
+
+.navbar-right .dropdown-menu {left:0;right:auto;}
+.navbar-collapse .navbar-nav.navbar-right:last-child {
+    margin-right: 0;
+}
+}
