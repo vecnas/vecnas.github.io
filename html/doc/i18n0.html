@@ -4,7 +4,7 @@ Jiant предоставляет несложный интерфейс для р
 Чтобы воспользоваться механизмом обеспечения текстовой информации, добавьте секцию <b>intl</b>
 в описание приложения или в секцию логики
 
-<pre class="brush: js">
+<pre><code class="js">
 
   intl: {
     url: "intlData.json",
@@ -12,18 +12,18 @@ Jiant предоставляет несложный интерфейс для р
     t: function(val) {}
   }
 
-</pre>
+</code></pre>
 
 После связывания в приложении будет доступна новая логика
 
-<pre class="brush: js">
+<pre><code class="js">
 
   jiant.onUiBound(app, ["intl"], function($, app) {
       var localMessage = app.logic.intl.t("key");
       alert(localMessage);
   });
 
-</pre>
+</code></pre>
 
 Этот интерфейс продублирован в секции логики и в корне приложения, оба места ссылаются на одно и то же.
 Так как данные грузятся с удаленного урла, следует добавить зависимость в вызов <b>onUiBound</b>,
@@ -35,7 +35,7 @@ Jiant предоставляет несложный интерфейс для р
 <h4>Параметры объявления</h4>
 Полное объявление секции локализации
 
-<pre class="brush: js">
+<pre><code class="js">
 
   intl: {
       url: "intlData.json",
@@ -50,26 +50,26 @@ Jiant предоставляет несложный интерфейс для р
       }
   }
 
-</pre>
+</code></pre>
 
 Следующие параметры могут быть установлены
 <ul>
   <li>
     <b>url</b> -  урл для загрузки данных локализации в формате json, например, содержимое файла
-    <pre class="brush: js">
+    <pre><code class="js">
       {
           "someKey": "Some key for t()",
           "someText" : "Me some text",
           "param" : "",
           "hello" : "Hello Translated"
       }
-    </pre>
+    </code></pre>
   </li>
   <li>
     <b>i18n</b> - используется ли библиотека <b>i18n</b>, эта библиотека предоставляет огромные возможности по локализации
     и jiant передает вызовы в нее, если она должна использоваться. В этом случае нужно подключить js файл
     библиотеки <b>i18n</b>. Это наилучший вариант для локализации. В этом случае шаблон подстановки следующий
-    <pre class="brush: js">
+    <pre><code class="js">
       {
           "subst0" : "Subst <b>__name__</b>",
           "subst1" : "<b>__name__</b> падает, уже в <b>__count__</b> раз"
@@ -77,12 +77,12 @@ Jiant предоставляет несложный интерфейс для р
       .....
       app.intl.t("subst0", {name: "some name"});
       app.intl.t("subst0", {name: "some name", count: 12});
-    </pre>
+    </code></pre>
   </li>
   <li>
     <b>javaSubst</b> - использовать ли java синтаксис для подставляемых данных, в этом случае имеем следующий шаблон
     подстановки: <b>{0}</b>, <b>{1}</b>
-    <pre class="brush: js">
+    <pre><code class="js">
       {
           "subst0" : "Subst {0}",
           "subst1" : "Another subst {1} and {0}"
@@ -90,24 +90,24 @@ Jiant предоставляет несложный интерфейс для р
       .....
       app.intl.t("subst0", param0);
       app.intl.t("subst1", param0, param1);
-    </pre>
+    </code></pre>
   </li>
   <li>
     <b>scanDoc</b> - если выставлен этот параметр, весь документ сканируется когда загружены текстовые данные,
     находятся элементы с атрибутами <b>data-nlabel</b> и в них подставляются локализованные данные
-    <pre class="brush: xml">
+    <pre><code class="html">
       &lt;!-- имеем в тексте html --&gt;
       &lt;div data-nlabel="hello"&gt;not loaded yet&lt;/div&gt;
       &lt;!-- в результате после загрузки локализованных данных --&gt;
       &lt;div data-nlabel="hello"&gt;Hello Translated&lt;/div&gt;
-    </pre>
+    </code></pre>
 
   </li>
 </ul>
 
 <h4>Методы объявления</h4>
 Повтор предыдущего примера
-<pre class="brush: js">
+<pre><code class="js">
 
   intl: {
       url: "intlData.json",
@@ -119,14 +119,14 @@ Jiant предоставляет несложный интерфейс для р
       }
   }
 
-</pre>
+</code></pre>
 Следующие методы возможны:
 <ul>
   <li>
     <b>t(key)</b> - функция <b>t()</b> от ключа добавляется всегда, даже если не объявлена,
     она возвращает локализованный текст по ключу <b>key</b>. Если нужна подстановка значений,
     то передаются дополнительные параметры, например
-    <pre class="brush: js">
+    <pre><code class="js">
       {
           "subst0" : "Subst <b>__name__</b>",
           "subst1" : "<b>__name__</b> падает, уже в <b>__count__</b> раз"
@@ -134,7 +134,7 @@ Jiant предоставляет несложный интерфейс для р
       .....
       app.intl.t("subst0", {name: "some name"});
       app.intl.t("subst0", {name: "some name", count: 12});
-    </pre>
+    </code></pre>
   </li>
   <li>
     <b>someText()</b> - пустая функция без аргументов - транслируется в вызов <b>t("someText")</b>,

@@ -1,18 +1,48 @@
+body {
+    font-family: Tahoma, sans-serif;
+    line-height: 1.6;
+}
+
+.defTable {
+  border-top: 1px solid #eee;
+  margin: 8px 0;
+}
+
+.defTable tr {
+  border-bottom: 1px solid #eee;
+}
+
+.defTable td {
+  padding: 8px 0;
+}
+
+.defTable td:nth-child(1){
+  font-weight: bold;
+  padding: 8px 16px 8px 0;
+  vertical-align: top;
+}
+
 #_main ._subnav {
+  border: 0;
+  padding: 20px;
+  border-radius: 0 0 0 4px;
   position: fixed;
   right: 0;
   top: 0;
-  border: 4px solid #7f8185;
   background: #333;
   color: #ccc;
-  padding: 8px;
   width: 256px;
+  max-height: 100%;
+  overflow: auto;
 }
 
 #_main ._subnav ._label {
-  text-decoration: underline;
   cursor: pointer;
-  margin: 4px 0;
+  margin: 8px 0;
+}
+
+#_main ._subnav ._label:hover {
+  color:#fff;
 }
 
 #_main ._subnav ._label:nth-child(1) {
@@ -27,6 +57,7 @@ div.syntaxhighlighter {
 }
 
 #_main ._container {
+  max-width: 1600px;
   padding: 0 312px;
 }
 
@@ -64,7 +95,8 @@ div.syntaxhighlighter {
 }
 
 h3, h4 {
-  padding: 32px 16px 16px 16px;
+  padding: 32px 16px 16px 0;
+  font-size: 20px;
   margin: 0;
 }
 
@@ -98,6 +130,7 @@ h3, h4 {
 
 .navbar
 {
+  border-radius: 0 0 4px 0;
 	max-width:300px;
 	margin-right: 0;
 	margin-left: 0;

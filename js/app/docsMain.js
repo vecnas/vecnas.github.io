@@ -8,7 +8,6 @@ jiant.module("docsMain", function($, app) {
 
     function setup() {
       app.states[""].start(function(topic, subtopic) {
-        jiant.logInfo("showing topic " + topic);
         if (! topic) {
           app.states[""].go("basics", "basics0");
           return;
@@ -19,23 +18,21 @@ jiant.module("docsMain", function($, app) {
 
     function updateSelectedCtl(topic, subtopic) {
       showTopic(topic, subtopic);
-      currentTopic && topicCtls[currentTopic].removeClass("selected");
-      currentSubtopic && topicCtls[currentSubtopic].removeClass("selected");
+      currentTopic && topicCtls[currentTopic] && topicCtls[currentTopic].removeClass("selected");
+      currentSubtopic && topicCtls[currentSubtopic] && topicCtls[currentSubtopic].removeClass("selected");
       currentTopic = topic;
       currentSubtopic = subtopic;
-      topicCtls[currentTopic].addClass("selected");
-      currentSubtopic && topicCtls[subtopic].addClass("selected");
+      topicCtls[currentTopic] && topicCtls[currentTopic].addClass("selected");
+      currentSubtopic && topicCtls[subtopic] && topicCtls[subtopic].addClass("selected");
     }
 
     function showTopic(topic, subtopic) {
-      app.views.main.container.load("doc/" + (subtopic ? subtopic : topic) + ".html", function( response, status, xhr ) {
-        if ( status == "error" ) {
-          app.views.main.container.html(app.logic.intl.loadError());
-        } else {
-          SyntaxHighlighter.highlight();
-          updateSubnav();
-        }
-      });
+      jiant.loadModule(app, subtopic, function() {
+        $('pre code').each(function(i, block) {
+          hljs.highlightBlock(block);
+        });
+        updateSubnav();
+      }, app.views.main.container, true);
     }
 
     function updateSubnav() {
@@ -69,6 +66,7 @@ jiant.module("docsMain", function($, app) {
         });
         subnav.container.remove();
         topicCtls[sub] = subnav;
+        jiant.module(sub, {html: "html/doc/" + sub + ".html"});
       })
     });
 

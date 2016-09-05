@@ -4,7 +4,7 @@
 Они предоставляют возможность привязки к данным с автоматическим обновлением при изменении базовых данных.
 Чтобы использовать шаблоны, добавьте секцию <b>templates</b> в определение приложения:
 
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         templates: {
             tmTagView: {},
@@ -13,19 +13,19 @@
     }
 
     jiant.app(app);
-</pre>
+</code></pre>
 
 используем:
 
-<pre class="brush: js">
+<pre><code class="js">
     app.templates.tmTagView.parseTemplate({text: "some text"});
-</pre>
+</code></pre>
 
 <h4>parseTemplate</h4>
 Каждый шаблон получает функцию
-<pre class="brush: js">
+<pre><code class="js">
     parseTemplate = function(data, subscribeForUpdates, reverseBind, mapping)
-</pre>
+</code></pre>
 вызов этой функции генерирует новый объект на базе данного шаблона. Этот объект может быть добавлен в ДОМ страницы
 и обладает всеми возможностями виджетов. Параметры функции
 <ul>
@@ -46,23 +46,23 @@
 
 Значения для подстановки имеют следующий формат:
 
-<pre class="brush: js">
+<pre><code class="js">
     !!val!!
-</pre>
+</code></pre>
 
 Поддерживаются вложенные поля:
 
-<pre class="brush: js">
+<pre><code class="js">
     !!obj.field1!!
     !!obj.field2!!
-</pre>
+</code></pre>
 
 Например:
 
-<pre class="brush: xml">
+<pre><code class="html">
     &lt;div>!!label!!&lt;/div>
     &lt;input name="!!data.name!!" value="!!data.value!!"/>
-</pre>
+</code></pre>
 
 Формат посвящен Терри Пратчетту, написавшему что количество восклицательных знаков пропорционально
 умственной нестабильности субъекта. Таким образом, уравновешенный разработчик не будет использовать более одного
@@ -76,7 +76,7 @@
 <p></p>
 Следующие два фрагмента делают одно и то же:
 
-<pre class="brush: js">
+<pre><code class="js">
     tm: {
         name: jiant.label
     }
@@ -84,16 +84,16 @@
     &lt;div id="_tm">
         &lt;div class="_name">&lt;/div>
     &lt;/div>
-</pre>
+</code></pre>
 
-<pre class="brush: js">
+<pre><code class="js">
     tm2: {
     }
 
     &lt;div id="_tm2">
         &lt;div>!!name!!&lt;/div>
     &lt;/div>
-</pre>
+</code></pre>
 
 Первый безопасней, второй не требует объявления элемента шаблона.
 Также первый осуществляет проверку наличия необходимых элементов и обеспечивает лучшую документацию при изучении кода.
@@ -110,7 +110,7 @@
 <p></p>
 Пример
 
-<pre class="brush: js">
+<pre><code class="js">
     templates: {
 
         tmTagView: {
@@ -121,7 +121,7 @@
     }
 
     bindUi("_", app);
-</pre>
+</code></pre>
 
 <h4>Реализация</h4>
 
@@ -129,7 +129,7 @@
 так же как виджеты. Подставляемые значения выделяются <b>!!</b> и обязательны при вызове шаблона.
 Если объект с данными не включает это значение - будет сгенерирована ошибка.
 
-<pre class="brush: xml">
+<pre><code class="html">
     &lt;div id="_tmTagView" style="display:none;">
         &lt;div class="badge">
             &lt;a href="#" class="_xCtl">x&lt;/a>
@@ -137,19 +137,19 @@
             !!text!!
         &lt;/div>
     &lt;/div>
-</pre>
+</code></pre>
 
 <h4>Использование</h4>
 После вызова функции <b>parseTemplate()</b> - возвращаемое значение это jQuery обертка,
 которую можно использовать так же как любой виджет на странице. Все элементы из спецификации приложения связаны:
 
-<pre class="brush: js">
+<pre><code class="js">
     var tagView = app.templates.tmTagView.parseTemplate({text: "some text"});
     app.views.main.tagsContainer.append(tagView);
     tagView.xCtl.click(function() {
         tagView.remove();
     });
-</pre>
+</code></pre>
 
 <h4>Propagate</h4>
 
@@ -168,7 +168,7 @@
 поместите все шаблоны в один невидимый контейнер (div или i)
 и поместите все <b>tr</b> шаблоны каждый в свой <b>tbody</b> в единой таблице:
 
-<pre class="brush: xml">
+<pre><code class="html">
     &lt;div style='display:none'>
         &lt;div id='_tm1'>
             &lt;div>!!val1!!&lt;/div>
@@ -186,7 +186,7 @@
         &lt;/tr>
         &lt;/tbody>
     &lt;/table>
-</pre>
+</code></pre>
 
 <h4>Детали реализации</h4>
 
@@ -195,15 +195,15 @@
 и будет невозможно проверить объявленные элементы шаблона на предмет наличия.
 Поэтому только шаблоны без элементов могут быть помещены внуть тэга <b>script</b>:
 
-<pre class="brush: js">
+<pre><code class="js">
     tmPrimitive: {}
-</pre>
+</code></pre>
 
 Как правило достаточно одного невидимого контейнера для всех нетабличных и одной таблицы для всех строковых шаблонов.
 В случае <b>tr</b> - браузер автоматически генерирует <b>tbody</b>, поэтому нужно добавлять его руками,
 как в данном примере:
 
-<pre class="brush: xml">
+<pre><code class="html">
     &lt;table style="display: none;">
         &lt;tbody id="_tmUpgradeRow">
         &lt;tr>
@@ -220,7 +220,7 @@
         &lt;/tr>
         &lt;/tbody>
     &lt;/table>
-</pre>
+</code></pre>
 
 Легко заметить принципиальное отличие от виджетов - контейнер не является частью шаблона. Поэтому когда смотрим
 на виджеты - контейнер это уже сам виджет, а в случае шаблонов - его первый подэлемент есть результат разбора шаблона.

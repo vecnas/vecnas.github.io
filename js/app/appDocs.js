@@ -6,13 +6,13 @@ $(function() {
 
     appPrefix: "_",
 
-    modulesPrefix: "../js/app/",
+    modulesPrefix: "js/app/",
 
     modules: ["docsMain"],
 
     intl: {
       i18n: 1,
-      url: "ru.json",
+      url: "html/ru.json",
       t: function(val) {},
       onTop: function(val) {},
       loadError: function() {}
@@ -54,7 +54,10 @@ $(function() {
 
       basics: {
         basics0: {},
-        basics_concepts: {}
+        basics_concepts: {},
+        basics_binding: {},
+        basics_lifecycle: {},
+        basics_app_params: {}
       },
 
       views: {
@@ -68,7 +71,8 @@ $(function() {
       },
 
       modules: {
-        modules0: {}
+        modules0: {},
+        modules_libs: {}
       },
 
       ajax: {
@@ -93,14 +97,13 @@ $(function() {
       i18n: {
         i18n0: {}
       },
+      misc: {
+        misc0: {},
+        misc_fields: {}
+      },
       xl: {
         xl0: {}
-      },
-/*
-      misc: {
-        misc0: {}
       }
-*/
     }
 
   };

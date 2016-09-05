@@ -1,6 +1,26 @@
 /*
  2.53.1: states .replace fixed to use defaults if specified
  2.54: model per field subscriptions added to collection functions, formatMoney(amount, grpDelim, decDelim, decimals) - more parameters
+ 2.55: jiant.forget completely restores base app structure, cleaning anything added later
+ 2.56: shortenings added to app always, forget resets all modeles to undefined, events separated to bus per app
+ 2.56.1: dependency for embedded into main script modules properly handled
+ 2.56.2: jiant.visualize updated
+ 2.56.3: removed model cleanup on forget
+ 2.57: .forget(app, deep) - one more "deep" parameter, to reset models to undefined and to remove css marker/flag classes
+ 2.57.1: loadLibs forgets pseudo app
+ 2.58: jiant.loadCss(arrOrUrl, cb) loads css into document
+ 2.59: jiant.loadModule(app, moduleSpec) loads module into specified application
+ 2.60: module(name, {js: ..., css: ..., html: ..., injectId: ...}) supported for external components loading
+ 2.60.1: .js also added to remote url path
+ 2.60.2: default lib load timeout increased from 500 to 5000 ms
+ 2.60.3: extra logging removed
+ 2.61: proper order of js/css/html loading in frames of same module
+ 2.61.1: proper loaded js eval
+ 2.62: libs are loaded on module load, checks for missing libs on module execution
+ 2.62.1: module load info print in dev mode - by whom initiated
+ 2.62.2: jiant.loadModule accepts both string and array as module spec for load (2nd parameter)
+ 2.62.3: recursion fixed when called loadModule during app init
+ 2.63: loadModule(app, modules, cb, injectTo, replace) - 2 more parameters, moved from jiant.module() declaration
  */
 "use strict";
 (function(factory) {
@@ -74,11 +94,17 @@
     lastStates = {},
     lastEncodedStates = {},
     loadedLogics = {},
+    addedLibs = {},
+    loadedLibs = {},
+    loadingLibs = {},
+    moduleLoads = [],
     awaitingDepends = {},
     externalDeclarations = {},
     modules = {},
     eventBus = $({}),
+    perAppBus = {},
     boundApps = {},
+    backupApps = {},
     bindingCurrently = {},
     pre = {},
     onInitAppActions = [],
@@ -1684,7 +1710,7 @@
           logUnboundCount(appId, name);
         };
         if (name == "intl") {
-          loadIntl(spec);
+          loadIntl(spec, appRoot);
         }
       }
       $.each(listeners, function(i, l) {l.boundLogic && l.boundLogic(appRoot, logics, name, spec)});
@@ -1708,8 +1734,11 @@
       declare(pseudoName, url);
     });
     var pseudoAppName = "app" + new Date().getTime() + Math.random();
-    onUiBound(pseudoAppName, pseudoDeps, cb);
-    bindUi({id: pseudoAppName}, devMode);
+    onUiBound(pseudoAppName, pseudoDeps, function($, app) {
+      cb($);
+      forget(pseudoAppName);
+    });
+    app({id: pseudoAppName});
   }
 
   function declare(name, objOrUrlorFn) {
@@ -1726,23 +1755,24 @@
         checkForExternalAwaiters(appId, name);
       });
     }
-    lib && jiant.info("Start loading external library " + objOrUrlorFn);
+    lib && info("Start loading external library " + objOrUrlorFn);
     lib ? $.ajax({
       url: objOrUrlorFn,
       cache: true,
       crossDomain: true,
-      dataType: "script",
-      success: handle
-    }) : handle();
+      timeout: 500,
+      dataType: "script"
+    }).always(handle) : handle();
   }
 
   function copyLogic(appId, name) {
-    var obj = externalDeclarations[name];
-    if (obj && awaitingDepends[appId] && awaitingDepends[appId][name] && boundApps[appId]) {
-      boundApps[appId].logic || (boundApps[appId].logic = {});
-      boundApps[appId].logic[name] || (boundApps[appId].logic[name] = {});
-      $.each($.isFunction(obj) ? obj($, boundApps[appId]) : obj, function(fname, fspec) {
-        boundApps[appId].logic[name][fname] = fspec;
+    var obj = externalDeclarations[name],
+        app = boundApps[appId];
+    if (obj && awaitingDepends[appId] && awaitingDepends[appId][name] && app) {
+      app.logic || (app.logic = {});
+      app.logic[name] || (app.logic[name] = {});
+      $.each($.isFunction(obj) ? obj($, app) : obj, function(fname, fspec) {
+        app.logic[name][fname] = fspec;
       });
     }
   }
@@ -1750,7 +1780,7 @@
   function checkForExternalAwaiters(appId, name) {
     if (externalDeclarations[name] && awaitingDepends[appId][name] && boundApps[appId]) {
       awakeAwaitingDepends(appId, name);
-      loadedLogics[appId][name] = 1;
+      loadedLogics[appId] && (loadedLogics[appId][name] = 1);
       logUnboundCount(appId, name);
     }
   }
@@ -1765,6 +1795,109 @@
       eventBus.trigger(dependencyResolvedEventName(appId, name));
 //            handleBound(appId, cb);
     });
+  }
+
+// ------------ load css staff ----------------
+
+  function loadCss(arr, cb) {
+    var all_loaded = $.Deferred(),
+        loadedCss = [],
+        link,
+        style,
+        interval,
+        timeout = 60000, // 1 minute seems like a good timeout
+        counter = 0, // Used to compare try time against timeout
+        step = 30, // Amount of wait time on each load check
+        docStyles = document.styleSheets, // local reference
+        ssCount = docStyles.length; // Initial stylesheet count
+
+    if (!$.isArray(arr)) {
+      arr = [arr];
+    }
+    $.each(arr, function (idx, url) {
+      info("Start loading CSS: " + url);
+      loadedCss.push(handleCss(url));
+    });
+
+    if (all_loaded.state() != 'resolved') {
+      // How to load multiple CSS files before callback
+      $.when.apply(loadedCss).done(function () {
+        all_loaded.resolve();
+      });
+    }
+
+    if (cb) {
+      // Perform JS
+      all_loaded.done(cb);
+    } else {
+      return loadedCss;
+    }
+
+    function handleCss(url) {
+      var promise = $.Deferred();
+      // IE 8 & 9 it is best to use 'onload'. style[0].sheet.cssRules has problems.
+      if (navigator.appVersion.indexOf("MSIE") != -1) {
+        link = document.createElement('link');
+        link.type = "text/css";
+        link.rel = "stylesheet";
+        link.href = url;
+        link.onload = function () {
+          promise.resolve();
+        };
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      // Support for FF, Chrome, Safari, and Opera
+      else {
+        style = $('<style>').text('@import "' + url + '"').attr({
+          // Adding this attribute allows the file to still be identified as an external
+          // resource in developer tools.
+          'data-uri': url
+        }).appendTo('body');
+        // This setInterval will detect when style rules for our stylesheet have loaded.
+        interval = setInterval(function () {
+          try {
+            // This will fail in Firefox (and kick us to the catch statement) if there are no
+            // style rules.
+            style[0].sheet.cssRules;
+            // The above statement will succeed in Chrome even if the file isn't loaded yet
+            // but Chrome won't increment the styleSheet length until the file is loaded.
+            if (ssCount === docStyles.length) {
+              throw (url + ' not loaded yet');
+            } else {
+              var loaded = false,
+                  href,
+                  n;
+              // If there are multiple files being loaded at once, we need to make sure that
+              // the new file is this file
+              for (n = docStyles.length - 1; n >= 0; n--) {
+                href = docStyles[n].cssRules[0].href;
+                if (typeof href != 'undefined' && href === url) {
+                  // If there is an HTTP error there is no way to consistently
+                  // know it and handle it. The file is considered 'loaded', but
+                  // the console should will the HTTP error.
+                  loaded = true;
+                  break;
+                }
+              }
+              if (loaded === false) {
+                throw (url + ' not loaded yet');
+              }
+            }
+            // If an error wasn't thrown by now, the stylesheet is loaded, proceed.
+            promise.resolve();
+            clearInterval(interval);
+          } catch (e) {
+            counter += step;
+            if (counter > timeout) {
+              // Time out so that the interval doesn't run indefinitely.
+              clearInterval(interval);
+              promise.reject();
+            }
+          }
+        }, step);
+      }
+      return promise;
+    }
   }
 
 // ------------ semaphores staff ----------------
@@ -1800,7 +1933,7 @@
     $.each(events, function(name, spec) {
       events[name].listenersCount = 0;
       events[name].fire = function() {
-        eventBus.trigger(appId + name + ".event", arguments);
+        perAppBus[appId].trigger(name + ".event", arguments);
       };
       events[name].on = function (cb) {
         events[name].listenersCount++;
@@ -1809,12 +1942,12 @@
           args.splice(0, 1);
           cb && cb.apply(cb, args);
         };
-        eventBus.on(appId + name + ".event", handler);
+        perAppBus[appId].on(name + ".event", handler);
         return handler;
       };
       events[name].off = function (handler) {
         events[name].listenersCount--;
-        return eventBus.off(appId + name + ".event", handler);
+        return perAppBus[appId].off(name + ".event", handler);
       };
 
       $.each(listeners, function(i, l) {l.boundEvent && l.boundEvent(appRoot, events, name, events[name])});
@@ -2285,7 +2418,8 @@
     }
   }
 
-  function loadIntl(intlRoot) {
+  function loadIntl(intlRoot, appRoot) {
+    infop("Loading intl for app !!", appRoot.id);
     if (! intlRoot.url) {
       //error("Intl data url not provided, internationalization will not be loaded");
       return;
@@ -2385,8 +2519,35 @@
 
 // ------------ modules staff ----------------
 
-  function _loadModules(appRoot, root, appId, cb) {
-    var modules2load = [];
+  function a(app) {
+    return jiant.getApps()[extractApplicationId(app)];
+  }
+
+  // loadModule before .app puts module into list of app modules, cb ignored
+  // loadModule during .app executes module immediately
+  // loadModule after .app executes module immediately
+  function loadModule(app, modules, cb, injectTo, replace) {
+    var appId = extractApplicationId(app);
+    if (! $.isArray(modules)) {
+      modules = [modules];
+    }
+    if (boundApps[appId]) { // after
+      _loadModules(boundApps[appId], modules, appId, false, cb, injectTo, replace);
+    } else if (bindingCurrently[appId]) { // during
+      _loadModules(bindingCurrently[appId], modules, appId, false, cb, injectTo, replace);
+    } else { // before
+      preApp(appId, function($, app) {
+        $.each(modules, function(i, m) {
+          app.modules.push(m);
+        });
+      });
+    }
+  }
+
+  function _loadModules(appRoot, root, appId, initial, cb, injectTo, replace) {
+    var modules2load = [],
+        replaceProvided = arguments.length >= 7;
+    cb = cb || function() {};
     if ($.isPlainObject(root)) {
       modules2load = parseObjectModules(root, appId);
     } else if ($.isArray(root)) {
@@ -2395,56 +2556,138 @@
       logError("Unrecognized modules type", root);
     }
     if (modules2load.length) {
-      loadModules(appRoot, appId, modules2load, cb);
+      if (injectTo) {
+        $.each(modules2load, function(i, m) {
+          m.injectTo = injectTo;
+        });
+      }
+      if (replaceProvided) {
+        $.each(modules2load, function(i, m) {
+          m.replace = replace;
+        });
+      }
+      loadModules(appRoot, appId, modules2load, initial, cb);
     } else {
       cb();
     }
   }
 
-  function loadModules(appRoot, appId, modules2load, cb) {
-    var loading = {};
-    function cbIf0() {
-      if (Object.keys(loading).length > 0) {
+  function executeExternal(appRoot, cb, arr, idx, module) {
+    module.css && $.each(module.css, function(i, url) {
+      if (addedLibs[url]) {
         return;
       }
+      addedLibs[url] = 1;
+      if (module.cssLoaded[url]) {
+        var css = module.cssLoaded[url] + "\r\n/*# sourceURL=" + url + " */\r\n";
+        $("<style>").html(css).appendTo("head");
+      }
+    });
+    module.html && $.each(module.html, function(i, url) {
+      // if (addedLibs[url]) {
+      //   return;
+      // }
+      addedLibs[url] = 1;
+      if (module.htmlLoaded[url]) {
+        var html = "<!-- sourceUrl = " + url + " -->" + module.htmlLoaded[url] + "<!-- end of source from " + url + " -->";
+        var inj = arr[idx].injectTo ? $(arr[idx].injectTo) : $("body");
+        if (arr[idx].replace) {
+          inj.html(html);
+        } else {
+          inj.append($(html));
+        }
+      }
+    });
+    module.js && $.each(module.js, function(i, url) {
+      if (addedLibs[url]) {
+        return;
+      }
+      addedLibs[url] = 1;
+      if (module.jsLoaded[url]) {
+        var js = module.jsLoaded[url] + "\r\n//# sourceURL=" + url + " \r\n";
+        $.globalEval(js);
+      }
+    });
+    executeModule(appRoot, cb, arr, idx + 1);
+  }
+
+  function executeModule(appRoot, cb, arr, idx) {
+    if (idx >= arr.length) {
+      cb();
+      return;
+    }
+    var moduleSpec = arr[idx],
+        mname = moduleSpec.name,
+        module = modules[mname];
+    if ($.isFunction(module)) {
+      var args = [$, appRoot, jiant, moduleSpec];
+      module.parsedDeps && $.each(module.parsedDeps, function(i, name) {
+        args.push(appRoot.modules[name]);
+      });
+      appRoot.modules[mname] = module.apply(this, args);
+      executeModule(appRoot, cb, arr, idx + 1);
+    } else if ($.isPlainObject(module)) {
+      executeExternal(appRoot, cb, arr, idx, module);
+    } else {
+      errorp("Application !!. Not loaded module !!. " +
+          "Possible error - wrong modules section, wrong path or module name in js file doesn't match declared " +
+          "in app.modules section. Load initiated by !!",
+          appRoot.id, mname, (moduleSpec.j_initiatedBy ? moduleSpec.j_initiatedBy : "appication"));
+      executeModule(appRoot, cb, arr, idx + 1);
+    }
+  }
+
+  function cbIf0() {
+    for (var i = 0; i < moduleLoads.length; i++) {
+      var load = moduleLoads[i];
+      if (cbLoadIf0(load.appRoot, load.modules2load, load.initial, load.cb, load.loading, i)) {
+        cbIf0();
+        break;
+      }
+    }
+  }
+
+  function cbLoadIf0(appRoot, modules2load, initial, cb, loading, idx) {
+    if (Object.keys(loading).length > 0) {
+      return false;
+    }
+    for (var i in modules2load) {
+      var mName = modules2load[i].name,
+          m = modules[mName];
+      if (!m || m.cssCount || m.jsCount || m.htmlCount) {
+        return false;
+      }
+    }
+    moduleLoads.splice(idx, 1);
+    if (initial) {
       appRoot.modulesSpec = appRoot.modules;
       appRoot.modules = {};
-      var arr = [];
-      $.each(modules2load, function(i, moduleSpec) {
-        arr.push(moduleSpec);
-      });
-      arr.sort(function(a, b) {
-        return nvl(a.order, 0) - nvl(b.order, 0);
-      });
-      $.each(arr, function(i, moduleSpec) {
-        var mname = moduleSpec.name;
-        if ($.isFunction(modules[mname])) {
-          var args = [$, appRoot, jiant, moduleSpec];
-          modules[mname].parsedDeps && $.each(modules[mname].parsedDeps, function(i, name) {
-            args.push(appRoot.modules[name]);
-          });
-          appRoot.modules[mname] = modules[mname].apply(this, args);
-        } else {
-          jiant.logError("Application " + appId + ". Not loaded module " + mname
-            + ". Possible error - wrong modules section, wrong path or module name in js file doesn't match declared " +
-              "in app.modules section. Load initiated by "
-            + (moduleSpec.j_initiatedBy ? moduleSpec.j_initiatedBy : "appication"));
-        }
-      });
-      cb();
     }
-    function addIfNeed(depModule) {
-      var found = false;
-      $.each(modules2load, function(i, moduleSpec) {
-        if (moduleSpec.name == depModule.name) {
-          found = true;
-          moduleSpec.order = Math.min(moduleSpec.order, depModule.order);
-          return false;
-        }
-      });
-      !found && modules2load.push(depModule);
-    }
-    function parseDep(relpath, dep, moduleSpec) {
+    var arr = [];
+    $.each(modules2load, function(i, moduleSpec) {
+      arr.push(moduleSpec);
+    });
+    arr.sort(function(a, b) {
+      return nvl(a.order, 0) - nvl(b.order, 0);
+    });
+    executeModule(appRoot, cb, arr, 0);
+    return true;
+}
+
+  function addIfNeed(modules2load, depModule) {
+    var found = false;
+    $.each(modules2load, function(i, moduleSpec) {
+      if (moduleSpec.name == depModule.name) {
+        found = true;
+        moduleSpec.order = Math.min(moduleSpec.order, depModule.order);
+        return false;
+      }
+    });
+    !found && modules2load.push(depModule);
+  }
+
+  function _loadModule(appRoot, appId, modules2load, initial, cb, moduleSpec, loading) {
+    function loadDep(relpath, dep, moduleSpec) {
       var url = moduleSpec.path,
         pos = url.lastIndexOf("/") + 1,
         relurl = url.substring(0, pos) + relpath;
@@ -2454,21 +2697,52 @@
       moduleSpec.j_after[depModule.name] = 1;
       depModule.order = Math.min(depModule.order, moduleSpec.order - 0.5);
       depModule.j_initiatedBy = moduleSpec.name;
-      addIfNeed(depModule);
-      loadModule(depModule);
+      addIfNeed(modules2load, depModule);
+      _loadModule(appRoot, appId, modules2load, initial, cb, depModule, loading);
       return depModule.name;
     }
-    function loadModule(moduleSpec) {
-      var moduleName = moduleSpec.name;
-      if (typeof moduleName != "string") {
-        logError("Wrong module declaration, possibly used array instead of object, moduleSpec:", moduleSpec);
-        return;
+    function handleModuleDeps(moduleName, moduleSpec) {
+      if (typeof modules[moduleName].deps == "string") {
+        errorp("Dependencies for module should be array, not string, error in module: !!, module url: !!", moduleName, url);
+        modules[moduleName].deps = [modules[moduleName].deps];
       }
-      if (!modules[moduleName] && !loading[moduleName]) {
+      var deps = modules[moduleName].deps,
+        darr = modules[moduleName].parsedDeps = [];
+      deps && $.each(deps, function(i, dep) {
+        if (typeof dep === "string") {
+          darr.push(loadDep("", dep, moduleSpec))
+        } else {
+          $.each(dep, function(path, arr) {
+            if (! $.isArray(arr)) {
+              arr = [arr];
+            }
+            $.each(arr, function(i, val) {
+              darr.push(loadDep(path, val, moduleSpec));
+            });
+          });
+        }
+      });
+    }
+    function preprocessLoadedModule(moduleSpec, moduleObj) {
+      handleModuleDeps(moduleSpec.name, moduleSpec);
+      if ($.isPlainObject(moduleObj)) {
+        loadPath(moduleObj, "css");
+        loadPath(moduleObj, "js");
+        loadPath(moduleObj, "html");
+      }
+    }
+    var moduleName = moduleSpec.name;
+    infop("Loading module !!, initiated by !!", moduleSpec.name, moduleSpec.j_initiatedBy ? moduleSpec.j_initiatedBy : "application");
+    if (typeof moduleName != "string") {
+      logError("Wrong module declaration, possibly used array instead of object, moduleSpec:", moduleSpec);
+      return;
+    }
+    if (!loading[moduleName]) {
+      if (!modules[moduleName]) {
         loading[moduleName] = 1;
-        var url = isCouldBePrefixed(moduleSpec.path)
-          ? ((appRoot.modulesPrefix || "") + moduleSpec.path + ".js?" + (appRoot.modulesSuffix || ""))
-          : moduleSpec.path;
+        var url = isCouldBePrefixed(moduleSpec.path) ? ((appRoot.modulesPrefix || "") + moduleSpec.path) : moduleSpec.path;
+        url = url + ".js?" + (appRoot.modulesSuffix || "");
+        infop("           url: " + url);
         $.ajax({
           url: url,
           timeout: appRoot.modulesTimeout || 15000,
@@ -2477,39 +2751,29 @@
           dataType: "script"
         }).done(function() {
           if (modules[moduleName]) {
-            if (typeof modules[moduleName].deps == "string") {
-              errorp("Dependencies for module should be array, not string, error in module: !!, module url: !!", moduleName, url);
-              modules[moduleName].deps = [modules[moduleName].deps];
-            }
-            var deps = modules[moduleName].deps,
-              darr = modules[moduleName].parsedDeps = [];
-            deps && $.each(deps, function(i, dep) {
-              if (typeof dep === "string") {
-                darr.push(parseDep("", dep, moduleSpec))
-              } else {
-                $.each(dep, function(path, arr) {
-                  if (! $.isArray(arr)) {
-                    arr = [arr];
-                  }
-                  $.each(arr, function(i, val) {
-                    darr.push(parseDep(path, val, moduleSpec));
-                  });
-                });
-              }
-            });
+            preprocessLoadedModule(moduleSpec, modules[moduleName]);
           }
         }).fail(function() {
           errorp("Application !!. Not loaded module !!", appId, moduleName);
         }).always(function() {
           if (loading[moduleName]) {
             delete loading[moduleName];
-            cbIf0(moduleName);
+            cbIf0();
           }
         });
+      } else {
+        preprocessLoadedModule(moduleSpec, modules[moduleName]);
       }
     }
+  }
+
+  function loadModules(appRoot, appId, modules2load, initial, cb) {
+    var loading = {};
+    moduleLoads.push({
+      appRoot: appRoot, modules2load: modules2load, initial: initial, cb: cb, loading: loading
+    });
     $.each(modules2load, function(i, moduleSpec) {
-      loadModule(moduleSpec);
+      _loadModule(appRoot, appId, modules2load, initial, cb, moduleSpec, loading);
     });
     cbIf0();
   }
@@ -2569,6 +2833,55 @@
     return module;
   }
 
+  function loadPath(module, path) {
+    if (module[path]) {
+      if (! $.isArray(module[path])) {
+        module[path] = [module[path]];
+      }
+      module[path + "Count"] = module[path + "Count"] ? (module[path + "Count"] + module[path].length) : module[path].length;
+      module[path + "Loaded"] = {};
+      $.each(module[path], function(i, url) {
+        if (loadedLibs[url]) {
+          module[path + "Loaded"][url] = loadedLibs[url];
+          module[path + "Count"]--;
+          if (!module.cssCount && !module.jsCount && !module.htmlCount) {
+            cbIf0();
+          }
+        } else if (loadingLibs[url]) {
+          loadingLibs[url].push(function() {
+            module[path + "Loaded"][url] = loadedLibs[url];
+            module[path + "Count"]--;
+            if (!module.cssCount && !module.jsCount && !module.htmlCount) {
+              cbIf0();
+            }
+          })
+        } else {
+          loadingLibs[url] = [];
+          $.ajax({
+            url: url,
+            timeout: jiant.LIB_LOAD_TIMEOUT,
+            cache: true,
+            crossDomain: true,
+            dataType: "text"
+          }).done(function(data) {
+            module[path + "Loaded"][url] = data;
+            loadedLibs[url] = data;
+            var waiters = loadingLibs[url];
+            delete loadingLibs[url];
+            $.each(waiters, function(i, w) {
+              w();
+            });
+          }).always(function() {
+            module[path + "Count"]--;
+            if (!module.cssCount && !module.jsCount && !module.htmlCount) {
+              cbIf0();
+            }
+          });
+        }
+      });
+    }
+  }
+
   function module(name, deps, cb) {
     if (arguments.length < 3) {
       cb = deps;
@@ -2579,6 +2892,7 @@
       modules[nameOld] = modules[name];
       errorp("Module !! already defined, overriding, old module stored as !!", name, nameOld);
     }
+    info("registered module " + name);
     modules[name] = cb;
     modules[name].deps = deps;
   }
@@ -2597,6 +2911,7 @@
 
   function maybeShort(root, full, shorten) {
     if (root[full]) {
+      root[shorten] || (root[shorten] = root[full]);
       return true;
     }
     if (root[shorten]) {
@@ -2619,6 +2934,8 @@
       jiant.logError("Application '" + appId + "' already loaded, skipping multiple bind call");
       return;
     }
+    backupApps[appId] = {};
+    plainCopy(root, backupApps[appId]);
     maybeShort(root, "logic", "l");
     var intlPresent = maybeShort(root, "intl", "i");
     maybeShort(root, "views", "v");
@@ -2640,11 +2957,11 @@
         cb($, root, jiant);
       });
     }
-    bindingCurrently[appId] = 1;
+    bindingCurrently[appId] = root;
     if (root.modulesSpec) {
       root.modules = root.modulesSpec;
     }
-    _loadModules(root, root.modules, appId, function() {
+    _loadModules(root, root.modules, appId, true, function() {
       intlPresent && _bindIntl(root, root.intl, appId);
       // views after intl because of nlabel proxies
       _bindViews(root, root.views, appUiFactory);
@@ -2656,6 +2973,7 @@
       _bindModels(root, root.models, appId);
       _bindLogic(root, root.logic, appId);
       jiant.DEV_MODE && !bindingsResult && alert("Some elements not bound to HTML properly, check console" + errString);
+      perAppBus[appId] = $({});
       boundApps[appId] = root;
       loadedLogics[appId] || (loadedLogics[appId] = {});
       $.each(externalDeclarations, function(name, impl) {
@@ -2671,7 +2989,8 @@
         if (awaitingDepends[appId]) {
           $.each(awaitingDepends[appId], function(key, arr) {
             if (arr && arr.length) {
-              logError("Some depends for application " + appId + " are not resolved", awaitingDepends[appId]);
+              errorp("Some logic depends for application " + appId + " are not implemented by your code, logic name: ", key);
+              logError(awaitingDepends[appId]);
               return false;
             }
           })
@@ -2787,15 +3106,15 @@
     handleBoundArr(appIdArr, cb);
   }
 
-  function preUiBound(appId, cb) {
+  function preApp(appId, cb) {
     if (typeof appId != "string") {
-      errorp("preUiBound first parameter must be application id string, got !!", typeof appId);
+      errorp("preApp first parameter must be application id string, got !!", typeof appId);
       return;
     } else if (boundApps[appId]) {
-      errorp("Application !! already bound, preUiBound should be called before bindUi", appId);
+      errorp("Application !! already bound, preApp should be called before bindUi", appId);
       return;
     } else if (bindingCurrently[appId]) {
-      errorp("Application !! binding in progress, preUiBound should be called before bindUi", appId);
+      errorp("Application !! binding in progress, preApp should be called before bindUi", appId);
       return;
     }
     var arr = pre[appId] = nvl(pre[appId], []);
@@ -2856,24 +3175,43 @@
     }
   }
 
-  function forget(appOrId) {
-    var appId = extractApplicationId(appOrId);
-    if (boundApps[appId]) {
-      boundApps[appId].views && $.each(boundApps[appId].views, function(v, vSpec) {
-        boundApps[appId].views[v] = vSpec._jiantSpec;
-      });
-      boundApps[appId].templates && $.each(boundApps[appId].templates, function(t, tSpec) {
-        boundApps[appId].templates[t] = tSpec._jiantSpec;
-      });
-      boundApps[appId].ajax && $.each(boundApps[appId].ajax, function(f, fSpec) {
-        boundApps[appId].ajax[f] = fSpec._jiantSpec;
+  function forget(appOrId, deep) {
+    var appId = extractApplicationId(appOrId),
+        app = boundApps[appId];
+    if (app && deep) {
+      $.each(app.models, function(i, m) {
+          m.reset(undefined);
+          getRepo(m).all().remove();
+        });
+      $.each(app.views, function (i, v) {
+        $.each(v._jiantSpec, function (name, spec) {
+            if (jiant.cssFlag === spec) {
+              v.removeClass(name);
+            } else if (jiant.cssMarker === spec) {
+              v.removeClass($.grep(v.attr('class').split(' '), function (c) {
+                return c.substr(0, name.length + 1) === (name + "_");
+              }).join(' '))
+            }
+          });
       });
     }
-    boundApps[appId] && delete boundApps[appId];
+    app && plainCopy(backupApps[appId], app);
+    app && delete boundApps[appId];
     awaitingDepends[appId] && delete awaitingDepends[appId];
     loadedLogics[appId] && delete loadedLogics[appId];
     lastEncodedStates[appId] && delete lastEncodedStates[appId];
     lastStates[appId] && delete lastStates[appId];
+    perAppBus[appId] && delete perAppBus[appId];
+  }
+
+  function plainCopy(fromApp, toApp) {
+    if (! fromApp) {
+      return;
+    }
+    $.each(toApp, function(key, val) {
+      delete toApp[key];
+    });
+    $.extend(true, toApp, fromApp);
   }
 
   function getAwaitingDepends() {
@@ -2892,15 +3230,19 @@
   }
 
   function visualize(appId) {
-    loadLibs(["https://cdn.rawgit.com/vecnas/jiant/master/graph.js"], function() {
-      appId || $.each(boundApps, function(key, val) {
-        appId = key;
-        return false;
-      });
-      onUiBound(appId, ["jiantVisualizer"], function($, app) {
-        app.logic.jiantVisualizer.visualize($, app);
-      });
-    }, true);
+    loadLibs(["https://rawgit.com/vecnas/jiant/master/arbor.js"], function() {
+      loadLibs(["https://rawgit.com/vecnas/jiant/master/arbor-tween.js"], function() {
+        loadLibs(["https://rawgit.com/vecnas/jiant/master/graph.js"], function() {
+          appId || $.each(boundApps, function(key, val) {
+            appId = key;
+            return false;
+          });
+          onUiBound(appId, ["jiantVisualizer"], function($, app) {
+            app.logic.jiantVisualizer.visualize($, app);
+          });
+        }, true)
+      })
+    })
   }
 
   function asObjArray(arr, name, idxName) {
@@ -2943,7 +3285,7 @@
   }
 
   function version() {
-    return 254;
+    return 263;
   }
 
   function Jiant() {}
@@ -2953,6 +3295,7 @@
     AJAX_SUFFIX: "",
     DEV_MODE: false,
     PAGER_RADIUS: 6,
+    LIB_LOAD_TIMEOUT: 5000,
     isMSIE: eval("/*@cc_on!@*/!1"),
     STATE_EXTERNAL_BASE: undefined,
     getAwaitingDepends: getAwaitingDepends, // for application debug purposes
@@ -2965,16 +3308,18 @@
     override: override,
     implement: implement,
     module: module,
+    loadModule: loadModule,
     bindView: bindView,
     loadLibs: loadLibs,
+    loadCss: loadCss,
     goRoot: goRoot,
     getStackTrace: getStackTrace,
     showTrace: showTrace,
     goState: function (params, preserveOmitted) {},
     onUiBound: onUiBound,
     onApp: onUiBound,
-    preUiBound: preUiBound,
-    preApp: preUiBound,
+    preUiBound: preApp,
+    preApp: preApp,
     onAppInit: onAppInit,
     refreshState: refreshState,
     getCurrentState: getCurrentState,

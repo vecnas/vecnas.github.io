@@ -5,14 +5,14 @@
 реализации таких решений. Что-то вроде программирования шаблонами.
 <p></p>
 Например,
-<pre class="brush: js">
+<pre><code class="js">
     pageableContentView(someContainerToPutData, someContainerForPager, itemRenderTemplate,
                         ajaxFunctionToGetDataFromServer, optionalExtraprocessorCallbackForItemExtraFunctionality)
         // программное решение для постраничного показа данных
 
     removeCtl(control, modelInstance)
         // элемент интерфейса для удаления объекта из модели
-</pre>
+</code></pre>
 
 Это выглядит как обычные функции, но более читаемо и понимаемо. Назовем их <b>eXtra Logic</b> (СверхЛогика).
 <b>jiant_xl.js</b> содержит начальные рецепты и по мере понимания организации приложений - будет расширяться.
@@ -20,14 +20,15 @@
 
 <h4>Важно</h4>
 
-<b>Почти все XL функции возвращают функции, поэтому нужно их дополнительно вызвать, как в последующих примерах.</b>
-Это сделано для возможности оперерировать ими в свою очередь как объектами, хотя возможно не всегда удачно сработало.
+<b>Многие XL функции возвращают функции, поэтому нужно их дополнительно вызвать, как в последующих примерах.</b>
+Это сделано для возможности оперерировать ими в свою очередь как объектами.
+
 
 <h4>Кнопка, переводящая в состояние</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     ctl2state: function(ctl, state, selectedCssClass, goProxy)
-</pre>
+</code></pre>
 
 Переводит приложение в заданное состояние при взаимодействии пользователя с заданным элементом интерфейса.
 <p></p>
@@ -43,15 +44,15 @@
 </ul>
 
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     jiant.xl.ctl2state(app.views.main.homeCtl, app.states.home, "active")()
-</pre>
+</code></pre>
 
 <h4>Виджеты, привязанные к состояниям</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     statefulViews: function(states, views)
-</pre>
+</code></pre>
 
 Виджеты, чья видимость привязана к определенным состояниям приложения.
 Показывает данные виджеты при переходе в заданные состояния и прячет при выходе.
@@ -63,15 +64,15 @@
 </ul>
 
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     jiant.xl.statefulViews(app.states.search, [app.views.searchPanel, app.views.searchResults])();
-</pre>
+</code></pre>
 
 <h4>Приложение на состояниях</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     statefulApp: function(app, viewNameSuffix, defaultState)
-</pre>
+</code></pre>
 
 Используется для организации целого приложения в режиме поддержки состояний - состояния и страницы к ним привязанные.
 <p></p>
@@ -89,7 +90,7 @@
 Виджеты не прячутся на старте приложения, они реагируют только на изменения состояний.
 <p></p>
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var app =  {
         states: {
             editContact: {},
@@ -106,13 +107,13 @@
     .....
 
     jiant.xl.statefulApp(app, "View", app.states.main)();
-</pre>
+</code></pre>
 
 <h4>Навигация приложения</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     nav: function(app, view, suffix, selectedCssClass, goProxy)
-</pre>
+</code></pre>
 
 Используется для организации меню навигации приложения
 <p></p>
@@ -129,7 +130,7 @@
 и добавляет к нему обработчик перехода в данное состояние
 <p></p>
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var app =  {
         states: {
             editContact: {},
@@ -148,15 +149,15 @@
     .....
 
     jiant.xl.nav(app, app.views.nav, "Ctl", "active")();
-</pre>
+</code></pre>
 
 
 <h4>Представление модели списком</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     bindList: function(model, container, template, viewFieldSetterName, sortFn, subscribeForUpdates,
                        reversePropagate, elemFactory, mapping)
-</pre>
+</code></pre>
 
 Представляет модель на интерфейсе. Отслеживает изменения модели, добавляя/удаляя и изменяя данные,
 при выставлении соответствующих настроек при вызове.
@@ -203,7 +204,7 @@
 
 Пример:
 
-<pre class="brush: js">
+<pre><code class="js">
     models: {
         user: {
             add: function(list) {},
@@ -217,14 +218,14 @@
     var bindModel = jiant.xl.bindList(app.models.user, app.views.userList, app.templates.userTm, "view");
     bindModel();
     bindModel.off();
-</pre>
+</code></pre>
 
 
 <h4>Представление объектов списком</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     renderList: function(list, container, tm, perItemCb, noItemsLabel, subscribeForUpdates, appendMode, mapping)
-</pre>
+</code></pre>
 
 представляет список объектов на интерфейсе
 <p></p>
@@ -243,9 +244,9 @@
 
 
 <h4>Фильтруемые данные</h4>
-<pre class="brush: js">
+<pre><code class="js">
     filterableData: function(model, ajax, filterModel, updateOnModel, completeCb, singletonMode)
-</pre>
+</code></pre>
 Представляет концепцию фильтруемой модели. В качестве фильтра выступает другая модель. Изменения фильтра
 вызывают обновление данных в исходной модели.
 <p></p>
@@ -279,7 +280,7 @@
 Возвращаемое значение - функция, вызов которой вызывает немедленное обновление данных модели исходя из текущего фильтра
 <p></p>
 Например,
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         ajax: {
             getUserData: function(filterData, cb) {}
@@ -303,17 +304,17 @@
     }
     .....
     var completeCb = function(data) {
-        jiant.logInfo("Data arrived, data);
+        jiant.logInfo("Data arrived", data);
     };
     var fd = jiant.xl.filterableData(app.models.user, app.ajax.getUserData, app.models.filter, true, completeCb, false);
     fd();
-</pre>
+</code></pre>
 
 
 <h4>Постраничная фильтруемая сортируемая модель</h4>
-<pre class="brush: js">
+<pre><code class="js">
     pageableFilterableSortableModel: function(model, ajax, state, pager, filterSortModel)
-</pre>
+</code></pre>
 Представляет собой модель данных с поддержкой фильтрации, сортировки и постраничного листания.
 Также осуществляет привязку к состоянию приложения, если необходимо.
 <p></p>
@@ -333,7 +334,7 @@
 Возвращает функцию, вызов которой обновляет данные модели.
 <p></p>
 Пример:
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         ajax: {
             search: function(s, pageable, cb) {}
@@ -368,13 +369,13 @@
     fn();
     app.models.searchFilter.sort("text"); // сортировать по тексту
     app.states.main.go(3); // 3-я страница результатов
-</pre>
+</code></pre>
 
 
 <h4>Формат постраничных данных</h4>
 Во всех методах, которые работают с постраничными данными ожидается специальный формат данных с сервера,
 который содержит сами данные и информацию о страницах. В следующем примере показан этот формат
-<pre class="brush: js">
+<pre><code class="js">
     ajax: {
         sendData: function(pageable, cb) {}
     }
@@ -394,14 +395,14 @@
             ]
         };
     });
-</pre>
+</code></pre>
 Данный формат использован на основе Java Spring фреймворка и автоматически совместим с ним.
 
 
 <h4>Постраничные фильтруемые сортируемые данные</h4>
-<pre class="brush: js">
+<pre><code class="js">
     pageableFilterableSortable: function(state, container, pager, template, ajax, filterModel, perItemCb, noItemsLabel, onCompleteCb)
-</pre>
+</code></pre>
 Представляет собой фильтруемые сортируемые данные с возможностью постраничного листания,
 отображенные непосредственно на интерфейсе, без промежуточных моделей
 <p></p>
@@ -422,7 +423,7 @@
 Возвращает функцию, вызов которой обновляет данные на интерфейсе.
 <p></p>
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         ajax: {
             search: function(s, pageable, cb) {}
@@ -459,14 +460,14 @@
         app.views.searchResultsView.noResultsLabel, null);
     fn();
     app.states.main.go(3); // 3-я страница результатов
-</pre>
+</code></pre>
 
 
 <h4>Кнопка записи</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     saveCtl: function(ctl, saveFn, markerElem, markerText)
-</pre>
+</code></pre>
 
 Представляет собой некое поведение интерфейса - кнопка, меняющая внешний вид при выполнении действий
 и возвращающая свой вид при их завершении. Также добавляет флаг disabled на кнопку во избежание двойных щелчков.
@@ -484,16 +485,16 @@
 </ul>
 
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     jiant.xl.saveCtl(app.views.userForm.saveCtl, app.ajax.saveUser, app.views.userForm.saveCtl, "Saving ...")()
-</pre>
+</code></pre>
 
 
 <h4>Постраничное содержимое</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     pagedContent: function(state, ajax, container, pager, template, perItemCb, noItemsLabel, onCompleteCb, useSorting)
-</pre>
+</code></pre>
 
 Отрисовывает содержимое постранично, предоставляет навигацию по страницам
 <p></p>
@@ -526,61 +527,85 @@
 </ul>
 
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var pc = jiant.xl.pagedContent(app.states.contactList, function(pageable, cb) {
             app.ajax.getContacts(selectedUserId, pageable, cb)
     }, app.views.contacts.container, app.views.contacts.pager, app.templates.contactTm, null,
     app.views.contacts.noContactsLabel);
     pc();
-</pre>
+</code></pre>
 
 
 <h4>X Опция</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     xOption: function(allSelector, filterFn)
-</pre>
+</code></pre>
+Эмулирует набор чекбоксов, с опцией выбора всех.
 <p></p>
 Параметры:
 <ul>
-    <li><b>allSelector</b> - </li>
-    <li><b>filterFn</b> - </li>
+    <li><b>allSelector</b> - ссылка на элемент интерфейса для выбора-сброса значений</li>
+    <li><b>filterFn</b> - функция, вызываемая при изменении набора выбранных опций, принимает один параметр
+        - массив выбранных значений</li>
 </ul>
-Возвращает
-<p></p>
+Возвращает объект
+<pre><code class="js">
+    {
+        add: function(elem), // добавляет элемент в список опций
+        sync: function() // синхронизирует filterFn с текущим набором выбранных опций
+    }
+</code></pre>
 Пример
-<pre class="brush: js">
-    jiant.xl.xOption(allSelector, filterFn)
-</pre>
+<pre><code class="js">
+    var filterStatus = jiant.xl.xOption(app.views.filterView.statusAll, function(arr) {
+            app.models.filter.statuses(arr);
+        });
+</code></pre>
 
 
 <h4>Псевдо дропдаун</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     pseudoDropdown: function(ctl, label, dropPanel, dropContainer, optionTm)
-</pre>
+</code></pre>
+Эмулирует поведение выпадающего списка с возможностью выбора элемента.
+При щелчке на элемент показывается выпадающий список, при щелчке на элемент списка - он прячется
+и выставляется выбранное значение и текст на элементе.
+Собственно показ выпадашки заключается в выставлении специального CSS класса, show/hide напрямую не вызываются.
 <p></p>
 Параметры:
 <ul>
-    <li><b>ctl</b> - </li>
-    <li><b>label</b> - </li>
-    <li><b>dropPanel</b> - </li>
-    <li><b>dropContainer</b> - </li>
-    <li><b>optionTm</b> - </li>
+    <li><b>ctl</b> - элемент, к которому привязывается выпадающий список, пока список "показывается"
+        - на элемент добавляется CSS класс <b>pseudoDropped</b></li>
+    <li><b>label</b> - ссылка на элемент на котором отображается выбранный текст</li>
+    <li><b>dropPanel</b> - панель, "показываемая" в качестве выпадающей, когда она показывается
+        - на нее выставляется CSS класс <b>pseudoDropped</b></li>
+    <li><b>dropContainer</b> - контейнер, в который добавляются элементы списка для выбора</li>
+    <li><b>optionTm</b> - шаблон для отображения отдельного элемента списка для выбора</li>
 </ul>
-Возвращает
+Возвращает объект, который можно использовать для добавления элементов:
+<pre><code class="js">
+    {
+        add: function(_val, title, selected), // добавляет элемент в выпадашку
+        change: function(arg), // активирует событие "change" с переданным значением
+        empty: function(), // удаляет все элементы из контейнера
+        val: function(_val, title) // возвращает текущее значение либо устанавливает новое
+    }
+</code></pre>
 <p></p>
 Пример
-<pre class="brush: js">
-    jiant.xl.pseudoDropdown(ctl, label, dropPanel, dropContainer, optionTm)
-</pre>
+<pre><code class="js">
+    jiant.xl.pseudoDropdown(app.views.main.selectSex, app.views.main.selectSex, app.views.selectSexDialog,
+                            app.views.selectSexDialog, app.templates.optionTm);
+</code></pre>
 
 
 <h4>Псевдо селектор</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     pseudoSelect: function(arrElems, arrVals, cb, selectedIdx, selectClass)
-</pre>
+</code></pre>
 Эмулирует поведение элемента с возможностью выбрать один элемент из нескольких. Все параметры опциональные,
 так как можно добавлять элементы после создания.
 <p></p>
@@ -594,7 +619,7 @@
     <li><b>selectClass</b> (опционально) - CSS класс, который навешивается на выбранный элемент (не значение)</li>
 </ul>
 Возвращает объект, который можно использовать для добавления пар элемент-значение:
-<pre class="brush: js">
+<pre><code class="js">
     {
         add: function(elem, val, cb, selected), // добавляет пару элемент-значение, использует для них переданный коллбэк,
                                                 // флаг selected определяет выбраны ли они при добавлении
@@ -603,14 +628,16 @@
         setSelectClass: function(cls) // устанавливает CSS класс на выбранном элементе,
                                       // баг - не снимает старый класс при смене на новый
     }
-</pre>
+</code></pre>
 
 <p></p>
+
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         views: {
             main: {
+                hideAll: jiant.ctl,
                 tabCtls: jiant.collection,
                 tabPanels: jiant.collection
             }
@@ -619,14 +646,15 @@
     ...
     var view = app.views.main;
     var select = jiant.xl.pseudoSelect(view.tabCtls, view.tabPanels, null, 0, "active);
-</pre>
+    select.add(view.hideAll, view.hideAll, function() { view.tabPanels.hide() });
+</code></pre>
 
 
 <h4>Подтверждаемое действие Бутстрап</h4>
 
-<pre class="brush: js">
+<pre><code class="js">
     confirmedActionBs: function(ctl, confirmDialogView, dialogOkCtl, actionFn, preCb)
-</pre>
+</code></pre>
 По нажатию на контрол интерфейса подтверждает выполнение действия и затем выполняет его в случае подтверждения,
 работает в среде Bootstrap.
 <p></p>
@@ -639,7 +667,7 @@
     <li><b>preCb</b> (опционально) - коллбэк, выполняемый после нажатия на контрол, но до показа диалога подтверждения</li>
 </ul>
 Пример
-<pre class="brush: js">
+<pre><code class="js">
     var app = {
         views: {
             mainView: {
@@ -656,14 +684,14 @@
     };
     var fn = jiant.xl.confirmedActionBs(app.views.mainView.doSmthCtl, app.views.confirmationDialog, app.views.confirmationDialog.okCtl, action);
     fn();
-</pre>
+</code></pre>
 
 
 <h4>Пример</h4>
 
 Некая кнопка, отсылающая приложение в определенное состояние:
 
-<pre class="brush: js">
+<pre><code class="js">
     ctl2state: function(ctl, state, selectedCssClass) {
         return function() {
             ctl.click(function() {
@@ -677,7 +705,7 @@
             });
         };
     }
-</pre>
+</code></pre>
 
 3 параметра:
 <ul>
@@ -690,18 +718,19 @@
 
 Теперь используем:
 
-<pre class="brush: js">
+<pre><code class="js">
     jiant.xl.ctl2state(footer.showActiveCtl, app.states.active, cls)();
     jiant.xl.ctl2state(footer.showCompletedCtl, app.states.completed, cls)();
     jiant.xl.ctl2state(footer.showAllCtl, app.states[""], cls)();
-</pre>
+</code></pre>
 
 Добавляем к приложению готовую логику любой сложности всего одной строкой
+
 
 <h4>Светлое будущее</h4>
 
 Каждый раз, разрабатывая какую-то концепцию - сохраняем ее для будущего использования
 как некий eXtra Logic рецепт. В следующий раз вы получите больше готовой программной логики
-вместо просто переписывания заново.
+вместо переписывания заново.
 <p></p>
 Это словно jQuery плагины, но не для визуальных компонентов, а для программных решений
