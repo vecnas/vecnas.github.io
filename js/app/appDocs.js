@@ -23,7 +23,7 @@ $(function() {
         jDefaults: {
           topic: "basics"
         },
-        go: function(topic, subtopic) {},
+        go: function(topic, subtopic, section) {},
         start: function(cb) {},
         end: function(cb) {}
       }
@@ -58,6 +58,13 @@ $(function() {
         basics_binding: {},
         basics_lifecycle: {},
         basics_app_params: {}
+      },
+
+      advanced: {
+        advanced0: {},
+        advanced_crossdomain: {},
+        advanced_devmode: {},
+        advanced_fasstart: {}
       },
 
       views: {

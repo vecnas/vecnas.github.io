@@ -1,44 +1,80 @@
 <h4>Поля jiant.</h4>
 
-Jiant содержит несколько полей, полный список
+Jiant содержит несколько полей, которые можно разбить по смыслу по нескольким категориям
+
+<h4>Глобальные настройки</h4>
 
 <table class="defTable">
     <tr>
         <td>AJAX_PREFIX</td>
-        <td></td>
+        <td>Глобальная настройка префикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,5">про аякс</a></td>
     </tr>
     <tr>
         <td>AJAX_SUFFIX</td>
-        <td></td>
+        <td>Глобальная настройка суффикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,5">про аякс</a></td>
     </tr>
     <tr>
         <td>DEV_MODE</td>
-        <td></td>
+        <td>Включает режим разработки, в котором выдается больше отладочной информации</td>
     </tr>
     <tr>
         <td>PAGER_RADIUS</td>
-        <td></td>
+        <td>Количество показываемых страниц от текущей в элементе <a href="#jDocs=,views,viewsElems,17">jiant.pager</a></td>
     </tr>
     <tr>
         <td>LIB_LOAD_TIMEOUT</td>
-        <td></td>
+        <td>Время загрузки внешней библиотеки, используется в <a href="#jDocs=,modules,modules_libs,0">библиотечных модулях</a>, по умолчанию равен 5000 (5 секунд)</td>
     </tr>
     <tr>
         <td>isMSIE</td>
-        <td></td>
+        <td>Флаг, определяющий является ли текущий браузер Internet Explorer'ом</td>
     </tr>
     <tr>
         <td>STATE_EXTERNAL_BASE</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>flags.ajaxSubmitAsMap</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>key.*</td>
-        <td></td>
+        <td>Префикс состояний, см. <a href="#jDocs=,states,states0,10">про состояния</a></td>
     </tr>
 </table>
 
-<h4>В написании</h4>
+Например,
+<pre><code class="js">
+    jiant.DEV_MODE = true;
+    jiant.LIB_LOAD_TIMEOUT = 15000;
+    jiant.AJAX_SUFFIX = ".php";
+</code></pre>
+
+
+<h4>Типы элементов виджетов</h4>
+
+Сюда входят поля типа jiant.pager, jiant.input, jiant.label и тд.
+Все типы описаны в <a href="#jDocs=,views,viewsElems,0">секции про элементы виджетов</a>
+
+<h4>Флаги, вспомогательные значения</h4>
+
+<table class="defTable">
+    <tr>
+        <td>flags.ajaxSubmitAsMap</td>
+        <td>Флаг меняющий способ отправки сложных данных на сервер, см. <a href="#jDocs=,ajax,ajax0,2">Работу с сервером</a> для деталей</td>
+    </tr>
+    <tr>
+        <td>key.*</td>
+        <td>Содержит несколько общеупотребительных кодов клавиш, чтобы не искать их каждый раз
+            <pre><code class="js">
+key: {left: 37, up: 38, right: 39, down: 40, del: 46, backspace: 8,
+        tab: 9, end: 35, home: 36, enter: 13, ctrl: 17,
+        escape: 27, dot: 190, dotExtra: 110, comma: 188,
+        a: 65, c: 67, u: 85, w: 87, space: 32, 1: 49, 2: 50, 3: 51, 4: 52, 5: 53, 6: 54}
+            </code></pre>
+        </td>
+    </tr>
+</table>
+
+Например,
+<pre><code class="js">
+    var obj = { a: "1", b: "2"};
+    obj[flags.ajaxSubmitAsMap] = 1;
+    app.ajax.sendObj(obj);
+
+
+    elem.keyup(function(evt) {
+      if (evt.keyCode === jiant.key.left) ....
+</code></pre>

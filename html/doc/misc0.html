@@ -1,263 +1,425 @@
 <h4>Функции jiant.</h4>
-Jiant содержит несколько функций, полный список
+Jiant содержит несколько функций, которые можно разделить на следующие категории
+
+<h4>Работа с приложениями</h4>
 
 <table class="defTable">
     <tr>
-        <td>getAwaitingDepends</td>
-        <td></td>
+        <td>getAwaitingDepends()</td>
+        <td>возвращает список нереализованных зависимостей, ожидаемых каким-либо кодом приложения.
+            Полезен при отладке и поиске нереализованных программных интерфейсов. Как правило, можно вызывать из консоли.
+            Например,
+            <pre><code class="js">
+                jiant.getAwaitingDepends();
+            </code></pre>
+        </td>
     </tr>
     <tr>
-        <td>bind</td>
-        <td></td>
+        <td>bindUi(prefix, root, devMode, viewsUrl, injectId)</td>
+        <td>выполняет связывание приложения с реализацией.
+            См. <a href="#jDocs=,basics,basics_binding,3">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>bindUi</td>
-        <td></td>
+        <td>app(app)</td>
+        <td>более короткая запись для выполнения связывания приложения.
+            См. <a href="#jDocs=,basics,basics_binding,2">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>app</td>
-        <td></td>
+        <td>forget(appOrId, deep)</td>
+        <td>развязывает приложение, после чего можно произвести повторное связывание.
+            Полезно в случаях когда уже готовое стороннее приложение загружается как часть страницы многократно,
+            с разными параметрами. Первый параметр, <b>appOrId</b> - приложение или его идентификатор. Второй параметр,
+        <b>deep</b> - если передан, перед развязыванием скидывает все поля синглтон моделей на undefined,
+            удаляет все записи из репозиториев моделей и удаляет все css флаги и маркеры с виджетов<</td>
     </tr>
     <tr>
-        <td>forget</td>
-        <td></td>
+        <td>declare(name, objOrUrlorFn)</td>
+        <td>Используется для объявления внешних программных интерфейсов.
+            См. <a href="#jDocs=,logics,logics0,4">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>declare</td>
-        <td></td>
+        <td>override(spec, implFn)</td>
+        <td>Используется для переопределения метода в уже зарегистрированной реализации интерфейса.
+            См. <a href="#jDocs=,logics,logics0,5">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>override</td>
-        <td></td>
+        <td>implement(logic, impl)</td>
+        <td>Используется для реализации объявленного программного интерфейса.
+            См. <a href="#jDocs=,logics,logics0,1">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>implement</td>
-        <td></td>
+        <td>module(name, deps, cb)</td>
+        <td>Используется для объявления модуля.
+            См. <a href="#jDocs=,modules,modules0,3">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>module</td>
-        <td></td>
+        <td>loadModule(app, modules, cb, injectTo, replace)</td>
+        <td>Используется для загрузки модуля.
+            См. <a href="#jDocs=,modules,modules0,7">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>loadModule</td>
-        <td></td>
+        <td>bindView(appRoot, viewId, viewContent, view)</td>
+        <td>Используется для связывания отдельного виджета в рамках уже связанного приложения.
+            См. <a href="#jDocs=,views,views0,12">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>bindView</td>
-        <td></td>
+        <td>loadLibs(arr, cb)</td>
+        <td>Загружает переданные библиотеки, затем выполняет коллбэк. Порядок загрузки не гарантируется.
+            Если нужен порядок - следует использовать <a href="#jDocs=,modules,modules_libs,0">библиотечные модули</a>.
+            Например,
+            <pre><code class="js">
+                jiant.loadLibs(["https://rawgit.com/vecnas/jiant/master/arbor.js",
+                                "https://rawgit.com/vecnas/jiant/master/arbor-tween.js"],
+                    function() {
+                        alert("all libs are loaded");
+                    });
+            </code></pre>
+        </td>
     </tr>
     <tr>
-        <td>loadLibs</td>
-        <td></td>
+        <td>loadCss(arr, cb)</td>
+        <td>Загружает переданные стили и немедленно вставляет их в документ. Порядок загрузки не гарантируется.
+            Если нужен порядок - следует использовать <a href="#jDocs=,modules,modules_libs,0">библиотечные модули</a>.
+            Например,
+            <pre><code class="js">
+                jiant.loadCss(["testCss1.css", "testCss2.css"], function() {
+                    alert("all styles are loaded");
+                });
+            </code></pre>
     </tr>
     <tr>
-        <td>loadCss</td>
-        <td></td>
+        <td>goRoot(appOrId)</td>
+        <td>Переходит к ближайшему корневому состоянию.
+            См. <a href="#jDocs=,states,states0,6">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>goRoot</td>
-        <td></td>
+        <td>onUiBound(appIdArr, dependenciesList, cb)</td>
+        <td>То же самое что <b>onApp</b>, регистрирует исполняемый коллбэк для работы со связанным приложением
+            См. <a href="#jDocs=,basics,basics_binding,5">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>getStackTrace</td>
-        <td></td>
+        <td>onApp(appIdArr, dependenciesList, cb)</td>
+        <td>Регистрирует коллбэк для работы с приложением. Основной способ организации кода
+            См. <a href="#jDocs=,basics,basics_binding,5">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>showTrace</td>
-        <td></td>
+        <td>preUiBound(appId, cb)</td>
+        <td>То же что <b>preApp</b>. Выполняет код до связывания приложения, генерирует ошибку если пытается выполниться после
+            См. <a href="#jDocs=,basics,basics_binding,5">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>goState</td>
-        <td></td>
+        <td>preApp(appId, cb)</td>
+        <td>Выполняет код до связывания приложения, генерирует ошибку если пытается выполниться после
+            См. <a href="#jDocs=,basics,basics_binding,5">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>onUiBound</td>
-        <td></td>
+        <td>onAppInit(appId, cb)</td>
+        <td>Существует для поддержки старого кода, не использовать</td>
     </tr>
     <tr>
-        <td>onApp</td>
-        <td></td>
+        <td>refreshState(appOrId)</td>
+        <td>Обновляет текущее хэш-состояние приложения.
+            См. <a href="#jDocs=,states,states0,8">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>preUiBound</td>
-        <td></td>
+        <td>getCurrentState(appOrId)</td>
+        <td>Возвращает имя текущего хэш-состояния приложения
+            См. <a href="#jDocs=,states,states0,9">соответствующий раздел</a> для деталей</td>
     </tr>
     <tr>
-        <td>preApp</td>
-        <td></td>
+        <td>isModelSupplier(fn)</td>
+        <td>Сообщает является ли данная функция сапплаером модели.
+            Смотри также <a href="#jDocs=,models,models0,0">про модели</a>.
+        </td>
     </tr>
     <tr>
-        <td>onAppInit</td>
-        <td></td>
+        <td>isModelAccessor(fn)</td>
+        <td>Сообщает является ли данная функция сеттером/геттером модели
+            Смотри также <a href="#jDocs=,models,models0,0">про модели</a>.</td>
     </tr>
     <tr>
-        <td>refreshState</td>
-        <td></td>
+        <td>isModel(obj)</td>
+        <td>Сообщает является ли даный объект моделью jiant.
+            Смотри также <a href="#jDocs=,models,models0,0">про модели</a>.
+            <pre><code class="js">
+                var app = {
+                    models: {
+                        m: {
+                            jRepo: {},
+                            a: function(val) {return "a";},
+                            name: function(val) {}
+                        }
+                    }
+                };
+                jiant.onApp(app, function() {
+                    jiant.isModel(app.models.m); // true
+                    jiant.isModel(app); // false
+                    jiant.isModelSupplier(app.models.m.a); // true
+                    jiant.isModelSupplier(app.models.m.name); // false
+                    jiant.isModelAccessor(app.models.m.a); // false
+                    jiant.isModelAccessor(app.models.m.name); // true
+                });
+            </code></pre>
+        </td>
     </tr>
     <tr>
-        <td>getCurrentState</td>
-        <td></td>
+        <td>getRepo(modelSpec)</td>
+        <td>Возвращает ссылку на репозиторий модели, как правило это секция <b>jRepo</b>, но в старых версиях это была сама модель.
+            Смотри также <a href="#jDocs=,models,models0,0">про модели</a></td>
     </tr>
     <tr>
-        <td>setUiFactory</td>
-        <td></td>
+        <td>transientFn()</td>
+        <td>Маркер поля в модели, означающий что это поле не нужно отправлять на сервер.
+            Смотри также <a href="#jDocs=,models,models0,9">про модели</a></td>
     </tr>
     <tr>
-        <td>visualize</td>
-        <td></td>
+        <td>handleErrorFn(errorDetails)</td>
+        <td>Обработчик ошибок при запросах на сервер, смотри <a href="#jDocs=,ajax,ajax0,4">секцию про серверные вызовы</a> для деталей</td>
     </tr>
     <tr>
-        <td>isModelSupplier</td>
-        <td></td>
+        <td>registerCustomType(customTypeName, handler)</td>
+        <td>Регистрирует пользовательский тип элемента виджета или шаблона.
+            Смотри <a href="#jDocs=,views,views0,14">секцию про виджеты</a> для деталей</td>
     </tr>
     <tr>
-        <td>isModelAccessor</td>
-        <td></td>
+        <td>getDeclaredName(obj)</td>
+        <td>Возвращает объявленное имя функции для серверных (ajax) функций приложения</td>
     </tr>
     <tr>
-        <td>isModel</td>
-        <td></td>
+        <td>getApps()</td>
+        <td>Возвращает список всех загруженных приложений, способ получить ссылку на любое приложение по идентификатору
+            <pre><code class="js">
+                jiant.app("app0");
+                .....
+                jiant.getApps()["app0"];
+            </code></pre>
+        </td>
     </tr>
     <tr>
-        <td>packForState</td>
-        <td></td>
+        <td>intro.isTemplate(obj)</td>
+        <td>Сообщает, является ли переданный объект шаблоном jiant</td>
     </tr>
     <tr>
-        <td>unpackForState</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>handleErrorFn</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>registerCustomType</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>logInfo, logError</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>info, error</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>infop, errorp</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>check</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>parseTemplate, parseTemplate2Text</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>version</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>formatDate</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>formatDateUsa</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>formatMoney</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>formatTime</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>formatTimeSeconds</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>randomIntBetween</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>getURLParameter</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>lfill</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>pick</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>asObjArray</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>nvl</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>getFunctionParamNames</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>getDeclaredName</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>getApps</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>getRepo</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>addListener</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>removeListener</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>optional</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>fn</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>data</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>lookup</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>on</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>stub</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>transientFn</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td>intro.isTemplate</td>
-        <td></td>
+        <td>optional(tp)</td>
+        <td>Маркер опционального элемента виджета или шаблона, смотри <a href="#jDocs=,views,views0,15">про виджеты</a> для деталей</td>
     </tr>
 </table>
 
-<h4>В написании</h4>
+
+
+<h4>Форматирование</h4>
+
+<table class="defTable">
+    <tr>
+        <td>parseTemplate(text, data), parseTemplate2Text(text, data)</td>
+        <td>
+            Может использоваться отдельно от движка шаблонов, чтобы разобрать отдельные шаблонные строки.
+            Использование jiant.templates гораздо более удобно.
+            Разбирает переданный шаблон <b>text</b> подавая на вход данные <b>data</b>,
+            все подстановочные значения в шаблоне должны присутствовать в переданных данных
+            <b>parseTemplate</b> делает то же самое, плюс создает jQuery wrapper от полученной строки
+        </td>
+    </tr>
+    <tr>
+        <td>formatDate(millis)</td>
+        <td>Параметр - время в миллисекундах, возвращает строку, дату в формате "2012-02-28"</td>
+    </tr>
+    <tr>
+        <td>formatDateUsa(millis)</td>
+        <td>Параметр - время в миллисекундах, возвращает строку, дату в формате "02/28/2012"</td>
+    </tr>
+    <tr>
+        <td>formatMoney(amount, grpDelim, decDelim, decimals)</td>
+        <td>Форматирует переданное число. Параметры:
+            <ul>
+                <li><b>amount</b> - число для форматирования</li>
+                <li><b>grpDelim</b> - разделитель разрядов, по умолчанию "<b>,</b>"</li>
+                <li><b>decDelim</b> - разделитель дробной части, по умолчанию "<b>.</b>"</li>
+                <li><b>decimals</b> - количество знаков дробной части для показа</li>
+            </ul>
+            Например
+            <pre><code class="js">
+                jiant.formatMoney(123000); // => 123,000
+                jiant.formatMoney(12300000000, " "); // => 12 300 000 000
+                jiant.formatMoney(123000.4566, "^", "-", 2); // => 123^000-45
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>formatTime(millis)</td>
+        <td>Параметр - время в миллисекундах, возвращает строку, время в формате "07:42"</td>
+    </tr>
+    <tr>
+        <td>formatTimeSeconds(millis)</td>
+        <td>Параметр - время в миллисекундах, возвращает строку, время в формате "07:42:55"</td>
+    </tr>
+</table>
+
+
+<h4>Типы элементов виджетов</h4>
+
+<table class="defTable">
+    <tr>
+        <td>lookup()</td>
+        <td>Объявляет динамический элемент виджета, см. про <a href="#jDocs=,views,viewsElems,16">типы элементы виджетов</a> для подробностей</td>
+    </tr>
+    <tr>
+        <td>data()</td>
+        <td>Объявляет элемент виджета который записывается в <b>data-</b> аттрибут,
+            см. про <a href="#jDocs=,views,viewsElems,17">типы элементы виджетов</a> для подробностей</td>
+    </tr>
+</table>
+
+
+<h4>Логгирование</h4>
+Парные методы типа <b>infop()</b> / <b>errorp()</b> отличаются тем, что <b>info*()</b> методы печатают в консоль
+только если включен <a href="#jDocs=,misc,misc_fields,0">режим разработки</a>,
+а при выключенном режиме разработки ничего не делают. <b>error*()</b>
+всегда выводят данные со стек трейсом.
+<p></p>
+Все эти методы принимают произвольное количество аргументов и затем печатают их в консоль, отличия только в том
+как они это делают.
+
+<table class="defTable">
+    <tr>
+        <td>getStackTrace()</td>
+        <td>возвращает текущий стэк трейс. Использует <b>Error.captureStackTrace</b>, поэтому может работать не во всех браузерах</td>
+    </tr>
+    <tr>
+        <td>showTrace()</td>
+        <td>включает показ стэк трейса для .info логгирования. Полезно если нужно найти и убрать отладочные сообщения</td>
+    </tr>
+    <tr>
+        <td>logInfo(), logError()</td>
+        <td>Выводят аргументы в консоль, каждый отдельным вызовом, поэтому можно просмотреть детали объектов</td>
+    </tr>
+    <tr>
+        <td>info(), error()</td>
+        <td>Выводят аргументы в консоль, собирая их в одну строку, поэтому объекты выводятся как "[Object]"</td>
+    </tr>
+    <tr>
+        <td>infop(s), errorp(s)</td>
+        <td>Первый параметр - строка шаблона, в которую подставляются остальные аргументы. Символ подстановки - <b>!!</b>
+            <pre><code class="js">
+                jiant.infop("!! has !! fruits", "John", 12); // => John has 12 fruits
+                jiant.infop("Hello, !!", "Mary"); // => Hello, Mary
+            </code></pre>
+        </td>
+    </tr>
+</table>
+
+
+<h4>Остальные</h4>
+
+<table class="defTable">
+    <tr>
+        <td>visualize(appOrId)</td>
+        <td>визуализирует приложение в виде графа</td>
+    </tr>
+    <tr>
+        <td>fn(val)</td>
+        <td>Пустая функция, вспомогательное сокращение для читабельности, например, при объявлении моделей
+            <pre><code class="js">
+                var fn = jiant.fn;
+                models: {
+                    m: {
+                        jRepo: {},
+                        name: fn,
+                        email: fn,
+                        age: fn
+                    }
+                }
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>packForState(s)</td>
+        <td>кодирует строку в вид, используемый в хэш-состояниях</td>
+    </tr>
+    <tr>
+        <td>unpackForState(s)</td>
+        <td>раскодировывает строку из вида, используемого в хэш-состояниях</td>
+    </tr>
+    <tr>
+        <td>check(bool, err)</td>
+        <td>аналог assert, если переданное значение <b>bool</b> ложно, то печатает в консоль все остальные параметры
+            вызова и выдает alert в режиме разработки
+            <pre><code class="js">
+                check(allIsOk(), paramToPrint0, paramToPrint1, paramToPrint2);
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>version()</td>
+        <td>возвращает версию Jiant</td>
+    </tr>
+    <tr>
+        <td>getURLParameter(name)</td>
+        <td>возвращает значение параметра из урла с именем <b>name</b></td>
+    </tr>
+    <tr>
+        <td>lfill(val)</td>
+        <td>дополняет значение символом "0" слева до длины 2. "2" станет "02".</td>
+    </tr>
+    <tr>
+        <td>pick(marker, threshold)</td>
+        <td>печатает в логи время, прошедшее с предыдущего вызова <b>pick</b>, <b>marker</b> - строка которую нужно печатать.
+        Если передан <b>threshold</b> - будет напечатано значение только если прошедшее время больше заданного порога.
+        Используется для отладки производительности. Работает только при включенном режиме разработки</td>
+    </tr>
+    <tr>
+        <td>asObjArray(arr, name, idxName)</td>
+        <td>создает массив объектов из базового массива, <b>name</b> используется для имени поля куда помещается исходный объект.
+        Если передан <b>idxName</b>, то в это поле помещается индекс
+            <pre><code class="js">
+                var arr = {1, 2},
+                    arr2 = {3, 4, 5};
+                jiant.asObjArray(arr, "fld"); // [{fld: 1}, {fld: 2}]
+                jiant.asObjArray(arr2, "val", "idx"); // [{val: 3, idx: 0}, {val: 4, idx: 1}, {val: 5, idx: 2}]
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>nvl(val, defVal, path)</td>
+        <td>возвращает значение <b>val</b> либо <b>defVal</b>, если первое значение <b>undefined</b> или <b>null</b>.
+            Если передан <b>path</b>, проверяется не само <b>val</b>, а значение по этому пути
+            <pre><code class="js">
+                var a = null,
+                    b = {c: 1},
+                    d = {};
+                jiant.nvl(a, 22); // 22
+                jiant.nvl(b, 22) // {c: 1}
+                jiant.nvl(b, 5, "c") // 1
+                jiant.nvl(d, 5, "e") // 5
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>getFunctionParamNames(func)</td>
+        <td>возвращает массив с именами параметров функции или пустой массив
+            <pre><code class="js">
+                function a(name, email, pass) {}
+                jiant.getFunctionParamNames(a); // ["name", "email", "pass"]
+            </code></pre>
+        </td>
+    </tr>
+    <tr>
+        <td>randomIntBetween(from, to)</td>
+        <td>возвращает случайное целое значение от <b>from</b>(включительно) до <b>to</b> (включительно)</td>
+    </tr>
+    <tr>
+        <td>setUiFactory(factory)</td>
+        <td>устанавливает фабрику элементов jiant. Эта фабрика отвечает за нахождение реализации шаблона или виджета.
+            См. исходный код jiant, todo: добавить секцию про фабрику</td>
+    </tr>
+    <tr>
+        <td>addListener(listener)</td>
+        <td>добавляет прослушиватель на события связывания приложения. См. исходный код Jiant, <b>listenerProto</b>,
+        todo: добавить секцию про прослушку связывания</td>
+    </tr>
+    <tr>
+        <td>removeListener(listener)</td>
+        <td>удаляет имеющийся прослушиватель на события связывания приложения. См. исходный код Jiant, <b>listenerProto</b>,
+        todo: добавить секцию про прослушку связывания</td>
+    </tr>
+</table>

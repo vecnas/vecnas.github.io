@@ -1,7 +1,7 @@
 {
   "loadError": "Ошибка загрузки страницы, возможно эта глава еще не написана",
   "basics": "Основы",
-  "ajax": "Ajax",
+  "ajax": "Работа с сервером",
   "models": "Модели",
   "views": "Виджеты",
   "viewsElems": "Типы элементов",
@@ -36,5 +36,10 @@
   "basics_onUiBound": "onUiBound",
   "test": "Тест",
   "test0": "Тест здесь",
-  "onTop": "Наверх"
+  "onTop": "Наверх",
+  "advanced": "Продвинутые темы",
+  "advanced0": "Бонусы",
+  "advanced_devmode": "Режим разработки",
+  "advanced_fasstart": "Быстрый старт",
+  "advanced_crossdomain": "Кроссдомен"
 }
