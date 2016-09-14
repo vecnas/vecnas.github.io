@@ -22,6 +22,10 @@ body {
   vertical-align: top;
 }
 
+.defTable td:nth-child(2){
+  padding: 0 16px 0 0;
+}
+
 #_main ._subnav {
   border: 0;
   padding: 20px;

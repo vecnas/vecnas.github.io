@@ -57,14 +57,16 @@ $(function() {
         basics_concepts: {},
         basics_binding: {},
         basics_lifecycle: {},
-        basics_app_params: {}
+        basics_app_params: {},
+        basic_receipts: {}
       },
 
       advanced: {
         advanced0: {},
         advanced_crossdomain: {},
         advanced_devmode: {},
-        advanced_fasstart: {}
+        advanced_faststart: {},
+        advanced_project: {}
       },
 
       views: {

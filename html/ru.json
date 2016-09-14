@@ -17,6 +17,7 @@
   "basics0": "Введение",
   "basics_concepts": "Концепции",
   "basics_app_params": "Настройки приложения",
+  "basic_receipts": "Рецепты",
   "basics_binding": "Связывание",
   "basics_lifecycle": "Жизненный цикл",
   "ajax0": "Концепции",
@@ -40,6 +41,7 @@
   "advanced": "Продвинутые темы",
   "advanced0": "Бонусы",
   "advanced_devmode": "Режим разработки",
-  "advanced_fasstart": "Быстрый старт",
+  "advanced_faststart": "Быстрый старт",
+  "advanced_project": "Проектирование",
   "advanced_crossdomain": "Кроссдомен"
 }
