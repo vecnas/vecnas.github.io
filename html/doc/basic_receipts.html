@@ -152,7 +152,7 @@
   jiant.module("demoMain", function($, app) {
       jiant.onApp(app, function($, app) {
           app.semaphores.time4search.on(function() {
-              jiant.loadModule("searchEngine");
+              jiant.loadModule(app, "searchEngine");
           });
       });
   });
