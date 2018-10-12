@@ -32,7 +32,7 @@ jiant.module("docsMain", function($, app) {
           hljs.highlightBlock(block);
         });
         updateSubnav(section);
-      }, app.views.main.container, true);
+      }, true, app.views.main.container);
     }
 
     function updateSubnav(section) {

@@ -8,7 +8,7 @@ $(function() {
 
     modulesPrefix: "js/app/",
 
-    modules: ["docsMain", "testEvents"],
+    modules: ["docsMain"],
 
     intl: {
       i18n: 1,

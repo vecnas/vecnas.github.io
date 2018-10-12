@@ -39,13 +39,16 @@ Jiant предоставляет несложный интерфейс для р
 
   intl: {
       url: "intlData.json",
-      i18n: 1,
-      javaSubst: 1,
-      scanDoc: 1,
+      i18n: true,
+      i18nOptions: {},
+      prefix: "",
+      suffix: "",
+      javaSubst: true,
+      scanDoc: true,
       t: function(val) {}, // val =
       someText: function() {}, // "someText" =
       otherText: function() {}, // "otherText" =
-      customPrefix: function(suffix) {
+      customSuffix: function(suffix) {
           return intlTest.intl.t("custom_" + suffix)  // custom.suffix =
       }
   }
@@ -55,7 +58,9 @@ Jiant предоставляет несложный интерфейс для р
 Следующие параметры могут быть установлены
 <ul>
   <li>
-    <b>url</b> -  урл для загрузки данных локализации в формате json, например, содержимое файла
+    <b>url</b> -  урл для загрузки данных локализации в формате json, например, содержимое файла.
+    При формировании урла добавляется текущее значение <a href="#jDocs=,modules,modules0,1">app.modulesSuffix</a>,
+    для поддержки механизмов версионирования посредством добавления версии в урлы
     <pre><code class="js">
       {
           "someKey": "Some key for t()",
@@ -78,6 +83,13 @@ Jiant предоставляет несложный интерфейс для р
       app.intl.t("subst0", {name: "some name"});
       app.intl.t("subst0", {name: "some name", count: 12});
     </code></pre>
+  </li>
+  <li>
+    <b>i18nOptions</b> - объект настроек для библиотеки i18n - передается ей при инициализации. Опциональный.
+    Если установлен флаг javaSubst, он переопределяет interpolationPrefix/Suffix в этих настройках
+  </li>
+  <li>
+    <b>prefix</b>, <b>suffix</b> - префикс и суффикс для подставляемых значений
   </li>
   <li>
     <b>javaSubst</b> - использовать ли java синтаксис для подставляемых данных, в этом случае имеем следующий шаблон
@@ -105,6 +117,14 @@ Jiant предоставляет несложный интерфейс для р
   </li>
 </ul>
 
+
+<h4>Приоритет определения префикса и суффикса для подставляемых значений</h4>
+<ol>
+  <li>Наивысший - флаг <b>javaSubst</b></li>
+  <li>Затем - задание <b>prefix</b>/<b>suffix</b></li>
+  <li>Затем - определение настроек в <b>i18nOptions</b></li>
+</ol>
+
 <h4>Методы объявления</h4>
 Повтор предыдущего примера
 <pre><code class="js">
@@ -120,6 +140,7 @@ Jiant предоставляет несложный интерфейс для р
   }
 
 </code></pre>
+
 Следующие методы возможны:
 <ul>
   <li>

@@ -164,6 +164,8 @@ Ajax функции автоматически разбирают объекты
     alert("Server returned error: " + errText);
 }</code></pre>
     </li>
+    <li><b>app.handleErrorFn</b> - определить специфический для приложения обработчик ошибок ajax
+    </li>
     <li>
         или передать функцию обработки ошибок в вызов на сервер, как еще один параметр после коллбэка:
 <pre><code class="js">myApp.ajax.setUserName(12344, "John", "Smith", function(result) {}, function(error) {

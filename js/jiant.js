@@ -1,32 +1,5 @@
 /*
- 2.53.1: states .replace fixed to use defaults if specified
- 2.54: model per field subscriptions added to collection functions, formatMoney(amount, grpDelim, decDelim, decimals) - more parameters
- 2.55: jiant.forget completely restores base app structure, cleaning anything added later
- 2.56: shortenings added to app always, forget resets all modeles to undefined, events separated to bus per app
- 2.56.1: dependency for embedded into main script modules properly handled
- 2.56.2: jiant.visualize updated
- 2.56.3: removed model cleanup on forget
- 2.57: .forget(app, deep) - one more "deep" parameter, to reset models to undefined and to remove css marker/flag classes
- 2.57.1: loadLibs forgets pseudo app
- 2.58: jiant.loadCss(arrOrUrl, cb) loads css into document
- 2.59: jiant.loadModule(app, moduleSpec) loads module into specified application
- 2.60: module(name, {js: ..., css: ..., html: ..., injectId: ...}) supported for external components loading
- 2.60.1: .js also added to remote url path
- 2.60.2: default lib load timeout increased from 500 to 5000 ms
- 2.60.3: extra logging removed
- 2.61: proper order of js/css/html loading in frames of same module
- 2.61.1: proper loaded js eval
- 2.62: libs are loaded on module load, checks for missing libs on module execution
- 2.62.1: module load info print in dev mode - by whom initiated
- 2.62.2: jiant.loadModule accepts both string and array as module spec for load (2nd parameter)
- 2.62.3: recursion fixed when called loadModule during app init
- 2.63: loadModule(app, modules, cb, injectTo, replace) - 2 more parameters, moved from jiant.module() declaration
- 2.63.1: states - prev state vals applied before defaults
- 2.63.2: goRoot(appOrId) accepts app or application id (was only id before)
- 2.64: parsed template element gets extra CSS class jianttm_<templateId>, to simplify finding template parse results
- 2.64.1: some cleanup
- 2.65: removed models.onAndNow(replaced by .asapAndOn), added .nowAndOn, .asapAndOn, .once, also added .once for events
- 2.65.1: nowAndOn fix
+ 2.99.5: injectTo back to loadModule, as extra parameter
  */
 "use strict";
 (function(factory) {
@@ -41,20 +14,39 @@
 
     DefaultUiFactory = function() {
 
-      function view(prefix, viewId, viewContent) {
-        return viewContent.impl ? $(viewContent.impl) : $("#" + prefix + viewId);
+      function view(prefix, viewId, viewContent, byTags) {
+        var id = "#" + prefix + viewId;
+        if (viewContent.impl) {
+          return $(viewContent.impl);
+        } else if (byTags === "after-class") {
+          var byCls = $(id);
+          return byCls[0] ? byCls : $(viewId);
+        } else if (byTags === "before-class") {
+          var byTag = $(viewId);
+          return byTag[0] ? byTag : $(id);
+        } else if (!!byTags) {
+          return $(viewId);
+        } else {
+          return $(id);
+        }
       }
 
-      function viewComponent(viewElem, viewId, prefix, componentId, componentContent) {
-        return viewElem.find("." + prefix + componentId);
-      }
-
-      function template(prefix, tmId, tmContent) {
-        return tmContent.impl ? $(tmContent.impl) : $("#" + prefix + tmId);
+      function viewComponent(viewElem, viewId, prefix, componentId, componentContent, byTags) {
+        var path = "." + prefix + componentId;
+        if (byTags === "after-class") {
+          var byCls = viewElem.find(path);
+          return byCls[0] ? byCls : viewElem.find(componentId);
+        } else if (byTags === "before-class") {
+          var byTag = viewElem.find(componentId);
+          return byTag[0] ? byTag : viewElem.find(path);
+        } else if (!!byTags) {
+          return viewElem.find(componentId);
+        } else {
+          return viewElem.find(path);
+        }
       }
 
       return {
-        template: template,
         viewComponent: viewComponent,
         view: view
       }
@@ -93,6 +85,7 @@
     },
 
     customElementTypes = {},
+    customElementRenderers = {},
     bindingsResult = true,
     errString,
     pickTime,
@@ -109,11 +102,11 @@
     modules = {},
     eventBus = $({}),
     perAppBus = {},
+    preApping = {},
     boundApps = {},
     backupApps = {},
     bindingCurrently = {},
     pre = {},
-    onInitAppActions = [],
     uiFactory = new DefaultUiFactory(),
     statesUsed = {},
     listeners = [],
@@ -133,10 +126,107 @@
       "'" : ";7"
     }, reverseMap = {},
     replacementRegex = /;|,|=|\||\{|\}|:|#/gi,
-    reverseRegex = /;;|;1|;2|;3|;4|;5|;6|;7/gi;
-  $.each(replacementMap, function(key, val) {
+    reverseRegex = /;;|;1|;2|;3|;4|;5|;6|;7/gi,
+    restRegexp = /:([^\/]+)(\/|$)/g;
+  each(replacementMap, function(key, val) {
     reverseMap[val] = key;
   });
+
+  if (!String.prototype.startsWith) {
+    String.prototype.startsWith = function(searchString, position) {
+      position = position || 0;
+      return this.indexOf(searchString, position) === position;
+    };
+  }
+
+  if (!String.prototype.endsWith) {
+    String.prototype.endsWith = function(suffix) {
+      return this.indexOf(suffix, this.length - suffix.length) !== -1;
+    };
+  }
+
+  $.fn.extend({
+    showOn: function(fldOrCb, exactVal) {
+      var p = this._j.parent._j,
+        fn = isFunction(fldOrCb),
+        dir = true;
+      (!p.showing) && (p.showing = []);
+      if (!fn && fldOrCb.startsWith("!")) {
+        fldOrCb = fldOrCb.substr(1);
+        dir = false;
+      }
+      var data = {el: this, fld: fldOrCb, dir: dir, fn: fn};
+      if (arguments.length > 1) {
+        data.exactVal = exactVal;
+      }
+      p.showing.push(data);
+    },
+    hideOn: function(fldOrCb, exactVal) {
+      if (isFunction(fldOrCb)) {
+        this.showOn(function() {
+          return !fldOrCb.apply(this, arguments);
+        });
+      } else {
+        fldOrCb = (fldOrCb.startsWith("!")) ? fldOrCb.substr(1) : ("!" + fldOrCb);
+        arguments.length > 1 ? this.showOn(fldOrCb, exactVal) : this.showOn(fldOrCb);
+      }
+    },
+    switchClassOn: function(clsOrCb, fldOrCb, exactVal) {
+      var p = this._j.parent._j,
+        fn = isFunction(fldOrCb),
+        dir = true;
+      (!p.switchClass) && (p.switchClass = []);
+      if (!fn && fldOrCb.startsWith("!")) {
+        fldOrCb = fldOrCb.substr(1);
+        dir = false;
+      }
+      var data = {el: this, cls: clsOrCb, fld: fldOrCb, dir: dir, fn: fn};
+      if (arguments.length > 1) {
+        data.exactVal = exactVal;
+      }
+      p.switchClass.push(data);
+    }
+  });
+
+  function copyArr(arr) {
+    var ret = [];
+    each(arr, function(i, val) {ret.push(val)});
+    return ret;
+  }
+
+  function isFunction(fn) {
+    return typeof fn === "function";
+  }
+
+  function isArray(obj) {
+    return $.isArray(obj);// obj !== undefined && obj !== null && (Array.isArray(obj) || obj.jCollection);
+  }
+
+  function each(obj, cb) {
+    $.each(obj, cb);
+    /*
+     if (obj === null && obj === undefined) {
+     return;
+     }
+     var i = 0;
+     if (isArray(obj)) {
+     for (; i < obj.length; i++) {
+     if (cb.call(obj[i], i, obj[i]) === false) {
+     break;
+     }
+     }
+     } else if (typeof obj === "object") {
+     for (i in obj) {
+     if (obj.hasOwnProperty(i)) {
+     if (cb.call(obj[i], i, obj[i]) === false) {
+     break;
+     }
+     }
+     }
+     }
+     return obj;
+     */
+  }
 
   function randomIntBetween(from, to) {
     return Math.floor((Math.random()*(to - from + 1)) + from);
@@ -214,14 +304,14 @@
   }
 
   function msieDom2Html(elem) {
-    $.each(elem.find("*"), function(idx, child) {
-      $.each(child.attributes, function(i, attr) {
+    each(elem.find("*"), function(idx, child) {
+      each(child.attributes, function(i, attr) {
         if (attr.value.indexOf(" ") < 0 && attr.value.indexOf("!!") >= 0) {
           $(child).attr(attr.name, attr.value.replace(/!!/g, "e2013e03e11eee "));
         }
       });
     });
-    return $.trim($(elem).html()).replace(/!!/g, "!! ").replace(/e2013e03e11eee /g, "!! ");
+    return $(elem).html().trim().replace(/!!/g, "!! ").replace(/e2013e03e11eee /g, "!! ");
   }
 
   function nvl(val, defVal, path) {
@@ -229,7 +319,7 @@
       return defVal;
     }
     if (path) {
-      var v = $.isFunction(val[path]) ? val[path]() : val[path];
+      var v = isFunction(val[path]) ? val[path]() : val[path];
       if (v === undefined || v === null) {
         return defVal;
       }
@@ -242,7 +332,7 @@
     data = data || {};
     if (mapping) {
       data = $.extend({}, data);
-      $.each(mapping, function(key, val) {
+      each(mapping, function(key, val) {
         data[key] = data[val];
       });
     }
@@ -250,7 +340,7 @@
     try {
       var func = tmId ? _tmplCache[tmId] : null;
       if (!func) {
-        var str = $.trim($(that).html());
+        var str = (typeof that === "string" ? $("<i></i>").html(that) : $(that)).html().trim();
         if (!jiant.isMSIE) {
           str = str.replace(/!!/g, "!! ");
         } else {
@@ -263,7 +353,7 @@
             .replace(/'(?=[^#]*#>)/g, "\t")
             .split("'").join("\\'")
             .split("\t").join("'")
-            .replace(/!! (.+?)!! /g, "', $.isFunction($1) ? $1() : $1,'")
+            .replace(/!! (.+?)!! /g, "', jiant.intro.isFunction($1) ? $1() : $1,'")
             .split("!?").join("');")
             .split("?!").join("p.push('")
           + "');}return p.join('');";
@@ -271,7 +361,7 @@
         func = new Function("obj", strFunc);
         _tmplCache[tmId] = func;
       }
-      return $.trim(func(data));
+      return func(data).trim();
     } catch (e) {
       err = e.message;
       logError("Error parse template: " + err);
@@ -375,7 +465,13 @@
         url: url,
         data: elem.serialize(),
         success: cb,
-        error: function (jqXHR, textStatus, errorText) {jiant.handleErrorFn(jqXHR.responseText)}
+        error: function (jqXHR, textStatus, errorText) {
+          if (appRoot.handleErrorFn) {
+            appRoot.handleErrorFn(jqXHR.responseText);
+          } else {
+            jiant.handleErrorFn(jqXHR.responseText);
+          }
+        }
       };
       if (appRoot.crossDomain) {
         data.contentType = "application/json";
@@ -383,14 +479,14 @@
         data.xhrFields = {withCredentials: true};
         data.crossDomain = true;
       }
-      $.each(listeners, function(i, l) {l.submittingForm && l.submittingForm(appRoot, key, name, data)});
+      each(listeners, function(i, l) {l.submittingForm && l.submittingForm(appRoot, key, name, data)});
       return $.ajax(data);
     };
   }
 
   function printp(method, args) {
     var s = args[0] + "";
-    $.each(args, function(idx, arg) {
+    each(args, function(idx, arg) {
       if (idx > 0) {
         var pos = s.indexOf("!!");
         if (pos >= 0) {
@@ -406,7 +502,7 @@
 
   function printShort(method, args) {
     var s = "";
-    $.each(args, function(idx, arg) {
+    each(args, function(idx, arg) {
       s += arg;
       s += " ";
     });
@@ -418,7 +514,7 @@
       method = "error";
     }
     try {
-      window.console && window.console[method] && $.each(args, function(idx, arg) {
+      window.console && window.console[method] && each(args, function(idx, arg) {
         window.console[method](arg);
       });
     } catch (ex) {
@@ -456,7 +552,7 @@
       roots = [],
       lastPage = 0,
       lastTotalCls;
-    $.each(uiElem, function(i, elem) {
+    each(uiElem, function(i, elem) {
       var root = $("<ul></ul>");
       root.addClass("pagination");
       $(elem).append(root);
@@ -477,7 +573,7 @@
       }
     };
     uiElem.updatePager = function(page) {
-      $.each(roots, function(idx, root) {
+      each(roots, function(idx, root) {
         root.empty();
         lastTotalCls && root.removeClass(lastTotalCls);
         lastTotalCls = "totalPages_" + page.totalPages;
@@ -563,7 +659,7 @@
       offset = Math.min(offset, container.children().length - 1);
       prev.css("visibility", offset > 0 ? "visible" : "hidden");
       next.css("visibility", offset < container.children().length - pageSize ? "visible" : "hidden");
-      $.each(container.children(), function(idx, domElem) {
+      each(container.children(), function(idx, domElem) {
         var elem = $(domElem);
 //        logInfo("comparing " + idx + " vs " + offset + " - " + (offset+pageSize));
         if (idx >= offset && idx < offset + pageSize) {
@@ -590,52 +686,70 @@
 
   function _bindContent(appRoot, viewRoot, viewId, viewElem, prefix) {
     var typeSpec = {};
+    viewRoot._j = {};
     viewRoot._jiantSpec = typeSpec;
-    $.each(viewRoot, function (componentId, componentContentOrArr) {
-      var componentContent = getComponentType(componentContentOrArr);
-      typeSpec[componentId] = componentContent;
-      if (componentId in {appPrefix: 1, impl: 1, _jiantSpec: 1}) {
+    each(viewRoot, function (componentId, elemTypeOrArr) {
+      var componentTp = getComponentType(elemTypeOrArr);
+      typeSpec[componentId] = elemTypeOrArr;
+      if (componentId in {appPrefix: 1, impl: 1, compCbSet: 1, _jiantSpec: 1, _scan: 1, jInit: 1, _j: 1, customRenderer: 1}) {
         //skip
-      } else if (viewRoot[componentId] === jiant.lookup) {
+      } else if (componentTp === jiant.lookup) {
         jiant.logInfo("    loookup element, no checks/bindings: " + componentId);
         setupLookup(viewRoot, componentId, viewElem, prefix);
-      } else if (viewRoot[componentId] === jiant.meta) {
+      } else if (componentTp === jiant.meta) {
         //skipping, app meta info
-      } else if (viewRoot[componentId] === jiant.data) {
-        setupDataFunction(viewRoot, componentId);
+      } else if (componentTp === jiant.data) {
+        setupDataFunction(viewRoot, viewRoot, componentId, getAt(elemTypeOrArr, 1), getAt(elemTypeOrArr, 2));
         viewRoot[componentId].customRenderer = function(obj, elem, val, isUpdate, viewOrTemplate) {viewRoot[componentId](val)}
-      } else if (viewRoot[componentId] === jiant.cssMarker || viewRoot[componentId] === jiant.cssFlag) {
-        setupCssFlagsMarkers(viewRoot, componentId);
+      } else if (componentTp === jiant.cssMarker || componentTp === jiant.cssFlag) {
+        setupCssFlagsMarkers(viewRoot, componentId, componentTp, getAt(elemTypeOrArr, 1), getAt(elemTypeOrArr, 2));
       } else {
-        var uiElem = uiFactory.viewComponent(viewElem, viewId, prefix, componentId, componentContent);
-        ensureExists(prefix, appRoot.dirtyList, uiElem, prefix + viewId, prefix + componentId, isFlagPresent(componentContentOrArr, jiant.optional));
+        var uiElem = uiFactory.viewComponent(viewElem, viewId, prefix, componentId, componentTp, appRoot.bindByTag);
+        ensureExists(prefix, appRoot.dirtyList, uiElem, prefix + viewId, prefix + componentId, isFlagPresent(elemTypeOrArr, jiant.optional));
         viewRoot[componentId] = uiElem;
-        setupExtras(appRoot, uiElem, componentContent, viewId, componentId, viewRoot);
-        //        logInfo("    bound UI for: " + componentId);
+        setupExtras(appRoot, uiElem, componentTp, viewId, componentId, viewRoot, prefix);
+        if (componentTp === jiant.comp) {
+          var tmName = getAt(elemTypeOrArr, 1);
+          viewRoot[componentId].customRenderer = getCompRenderer(appRoot, tmName, componentId, elemTypeOrArr);
+          if (! (tmName in appRoot.templates)) {
+            error("jiant.comp element refers to non-existing template name: " + tmName + ", view.elem: " + viewId + "." + componentId);
+          }
+        }
+        viewRoot[componentId]._j = {
+          parent: viewRoot
+        };
       }
     });
   }
 
   function getComponentType(tpOrArr) {
-    if (! $.isArray(tpOrArr)) {
-      return tpOrArr;
+    return getAt(tpOrArr, 0);
+  }
+
+  function getAt(tpOrArr, pos) {
+    if (! isArray(tpOrArr)) {
+      return pos === 0 ? tpOrArr : null;
     }
-    var tp;
-    $.each(tpOrArr, function(i, item) {
-      if (item !== jiant.optional) {
-        tp = item;
+    var ret;
+    each(tpOrArr, function(i, item) {
+      if (item === jiant.optional) {
+        pos++;
+      }
+      if (i === pos) {
+        ret = item;
         return false;
       }
     });
-    return tp;
+    return ret;
+
   }
 
   function isFlagPresent(tpOrArr, flag) {
-    if (! $.isArray(tpOrArr)) {
+    if (! isArray(tpOrArr)) {
       return false;
     }
     var b = false;
-    $.each(tpOrArr, function(i, item) {
+    each(tpOrArr, function(i, item) {
       if (item === flag) {
         b = true;
         return false;
@@ -644,46 +758,95 @@
     return b;
   }
 
+  function getCompRenderer(appRoot, tmId, componentId, componentContentOrArr) {
+    return function(obj, elem, val, isUpdate, viewOrTemplate, settings) {
+      var mapping = settings.mapping || {},
+        actualObj = componentId in mapping ? obj[mapping[componentId]] : componentId in obj ? obj[componentId] : obj,
+        el, params;
+      if (obj === actualObj && isFlagPresent(componentContentOrArr, jiant.optional)) {
+        return;
+      }
+      if ($.isFunction(actualObj)) {
+        actualObj = actualObj.apply(obj);
+      }
+      var dataArr = $.isArray(actualObj) ? actualObj : [actualObj];
+      elem.html("");
+      var compCbSet = appRoot.templates[tmId].compCbSet;
+      compCbSet && compCbSet.start && isFunction(compCbSet.start) && compCbSet.start.apply();
+      each(dataArr, function(i, actualObj) {
+        if (actualObj) {
+          var param = getAt(componentContentOrArr, 2);
+          if (param) {
+            actualObj = $.extend({}, actualObj, param);
+          }
+          el = appRoot.templates[tmId].parseTemplate(actualObj, settings.subscribeForUpdates, settings.reverseBind, mapping[componentId]);
+          $.each(appRoot.templates[tmId]._jiantSpec, function(cId, cElem) {
+            viewOrTemplate[componentId][cId] = el[cId];
+          });
+          viewOrTemplate[componentId].propagate = function() {el.propagate.apply(el, arguments)};
+          elem.append(el);
+          compCbSet && compCbSet.perItem && isFunction(compCbSet.perItem) && compCbSet.perItem.apply(actualObj, el);
+        }
+      });
+      compCbSet && compCbSet.end && isFunction(compCbSet.end) && compCbSet.end.apply();
+    };
+  }
+
   function setupLookup(viewRoot, componentId, viewElem, prefix) {
     viewRoot[componentId] = function() {return viewElem.find("." + prefix + componentId);};
   }
 
-  function setupDataFunction(viewRoot, componentId) {
+  function setupDataFunction(viewRoot, linkRoot, componentId, mappingId, dataName) {
+    linkComponent(linkRoot, componentId, mappingId);
+    dataName = dataName || componentId;
     viewRoot[componentId] = function(val) {
-      if (arguments.length == 0) {
-        return viewRoot.attr("data-" + componentId);
+      if (arguments.length === 0) {
+        return viewRoot.attr("data-" + dataName);
       } else {
-        return viewRoot.attr("data-" + componentId, val);
+        return viewRoot.attr("data-" + dataName, val);
       }
     };
   }
 
-  function setupCssFlagsMarkers(viewRoot, componentId) {
-    var flag = viewRoot[componentId] === jiant.cssFlag,
+  function linkComponent(viewRoot, componentId, mappingId) {
+    if (mappingId) {
+      viewRoot.jMapping = viewRoot.jMapping || [];
+      viewRoot.jMapping[mappingId] = viewRoot.jMapping[mappingId] || [];
+      viewRoot.jMapping[mappingId].push(componentId);
+      viewRoot.jMapped = viewRoot.jMapped || {};
+      viewRoot.jMapped[componentId] = viewRoot.jMapped[componentId] || [];
+      viewRoot.jMapped[componentId].push(mappingId);
+    }
+  }
+
+  function setupCssFlagsMarkers(viewRoot, componentId, componentTp, mappingId, className) {
+    var flag = componentTp === jiant.cssFlag,
       markerName = "j_prevMarkerClass_" + componentId;
+    className = className || componentId;
+    linkComponent(viewRoot, componentId, mappingId);
     viewRoot[componentId] = {};
     viewRoot[componentId].customRenderer = function(obj, elem, val, isUpdate, viewOrTemplate) {
       if (viewOrTemplate[markerName]) {
-        $.each(viewOrTemplate[markerName], function(i, cls) {
+        each(viewOrTemplate[markerName], function (i, cls) {
           cls && viewOrTemplate.removeClass(cls);
         });
       }
       viewOrTemplate[markerName] = [];
       if (flag) {
-        var _v = $.isArray(val) && val.length == 0 ? undefined : val;
+        var _v = isArray(val) && val.length === 0 ? undefined : val;
         if (!!_v) {
-          viewOrTemplate[markerName].push(componentId);
-          viewOrTemplate.addClass(componentId);
+          viewOrTemplate[markerName].push(className);
+          viewOrTemplate.addClass(className);
         }
       } else {
         if (val !== undefined && val !== null) {
-          if (!$.isArray(val) && val && $.isFunction(val.split)) {
+          if (!isArray(val) && val && isFunction(val.split)) {
             val = val.split(",");
-          } else if (!$.isArray(val)) {
+          } else if (!isArray(val)) {
             val = [val];
           }
-          $.each(val, function(i, v) {
-            var cls = componentId + "_" + v;
+          each(val, function (i, v) {
+            var cls = className + "_" + v;
             viewOrTemplate[markerName].push(cls);
             viewOrTemplate.addClass(cls);
           })
@@ -693,7 +856,7 @@
   }
 
   function ensureSafeExtend(spec, jqObject) {
-    $.each(spec, function(key, content) {
+    each(spec, function(key, content) {
       if (jqObject[key]) {
         jiant.info("unsafe extension: " + key + " already defined in base jQuery, shouldn't be used, now overriding!");
         jqObject[key] = undefined;
@@ -714,7 +877,7 @@
       // array or object
       var json = [],
         arr = (obj && obj.constructor == Array);
-      $.each(obj, function (k, v) {
+      each(obj, function (k, v) {
         t = typeof(v);
         if (t == "string") {
           v = '"' + v + '"';
@@ -727,7 +890,7 @@
     }
   }
 
-  function maybeAddDevHook(uiElem, key, elem) {
+  function maybeAddDevHook(uiElem, key, elem, prefix, viewOrTm) {
     jiant.DEV_MODE && uiElem.click(function(event) {
       if (event.shiftKey && event.altKey) {
         var message = key + (elem ? ("." + elem) : "");
@@ -736,16 +899,41 @@
           message += pseudoserializeJSON($._data(uiElem[0], "events"));
         }
         info(message);
-        alert(message);
+        if (viewOrTm._jiantPropagationInfo) {
+          logInfo("Last propagated by: ", viewOrTm._jiantPropagationInfo, viewOrTm._jiantPropagationInfo.trace);
+        } else {
+          logInfo("No propagation for this view");
+        }
+        // alert(message);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      } else if (event.ctrlKey && event.altKey) {
+        copy2cb("#" + prefix + key + " " + (elem ? ("." + prefix + elem) : ""));
         event.preventDefault();
         event.stopImmediatePropagation();
       }
     });
   }
 
+  function copy2cb(txt) {
+    info(txt);
+    if (document.execCommand) {
+      var input = document.createElement("input");
+      input.type = "text";
+      input.style.opacity = 0;
+      input.style.position = "absolute";
+      input.style.zIndex = -1;
+      input.value = txt;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+    }
+  }
+
   function ensureExists(appPrefix, dirtyList, obj, idName, className, optional) {
-    if (idName && dirtyList && ($.inArray(idName, dirtyList) >= 0
-      || (appPrefix && $.inArray(idName.substring(appPrefix.length), dirtyList) >= 0))) {
+    if (idName && dirtyList && (dirtyList.indexOf(idName) >= 0
+      || (appPrefix && dirtyList.indexOf(idName.substring(appPrefix.length)) >= 0))) {
       return true;
     }
     if (!obj || !obj.length) {
@@ -754,7 +942,7 @@
         return true;
       } else {
         className ? errorp("non existing object referred by class under object id #!!, check stack trace for details, expected obj class: .!!", idName, className)
-            : errorp("non existing object referred by id, check stack trace for details, expected obj id: #!!", idName);
+          : errorp("non existing object referred by id, check stack trace for details, expected obj id: #!!", idName);
         if (className) {
           errString += ",    #" + idName + " ." + className;
         } else {
@@ -781,12 +969,31 @@
     elem.click(function() {viewOrTm.hide()})
   }
 
-  function setupExtras(appRoot, uiElem, elemType, key, elemKey, viewOrTm) {
+  function setupCtlBack(viewOrTm, elem) {
+    elem.click(function() {window.history.back()})
+  }
+
+  function setupCtl2root(app, elem) {
+    elem.click(function() {jiant.goRoot(app)})
+  }
+
+  function setupCtl2state(viewOrTm, elem, app, name) {
+    var stateName = name.endsWith("Ctl") ? name.substring(0, name.length - 3) : name;
+    elem.click(function() {app.states[stateName].go()})
+  }
+
+  function setupExtras(appRoot, uiElem, elemType, key, elemKey, viewOrTm, prefix) {
     if (elemType === jiant.tabs && uiElem.tabs) {
       uiElem.tabs();
       uiElem.refreshTabs = function() {uiElem.tabs("refresh");};
     } else if (elemType === jiant.ctlHide) {
       setupCtlHide(viewOrTm, uiElem);
+    } else if (elemType === jiant.et.ctl2state) {
+      setupCtl2state(viewOrTm, uiElem, appRoot, elemKey);
+    } else if (elemType === jiant.et.ctlBack) {
+      setupCtlBack(viewOrTm, uiElem);
+    } else if (elemType === jiant.et.ctl2root) {
+      setupCtl2root(appRoot, uiElem);
     } else if (elemType === jiant.inputInt) {
       setupInputInt(uiElem);
     } else if (elemType === jiant.inputFloat) {
@@ -808,103 +1015,170 @@
       setupNumLabel(appRoot, uiElem);
     } else if (customElementTypes[elemType]) {
       customElementTypes[elemType](uiElem, viewOrTm, appRoot);
-    } else if ($.isArray(elemType)) {
-      $.each(elemType, function(i, tp) {
-        setupExtras(appRoot, uiElem, tp, key, elemKey, viewOrTm);
+    } else if (isArray(elemType)) {
+      each(elemType, function(i, tp) {
+        setupExtras(appRoot, uiElem, tp, key, elemKey, viewOrTm, prefix);
       });
     }
-    maybeAddDevHook(uiElem, key, elemKey);
+    // maybeAddDevHook(uiElem, key, elemKey, prefix, viewOrTm);
   }
 
   function isServiceName(key) {
-    var words = ["parseTemplate", "parseTemplate2Text", "propagate", "customRenderer"];
-    return $.inArray(key, words) >= 0;
+    var words = ["parseTemplate", "parseTemplate2Text", "propagate", "customRenderer", "jMapping", "jMapped", "_jiantSpec"];
+    return words.indexOf(key) >= 0;
   }
 
-  function assignPropagationFunction(viewId, spec, viewOrTm) {
+  function makePropagationFunction(viewId, spec, viewOrTm) {
     var map = {};
-    $.each(spec, function (key, elem) {
+    each(spec, function (key, elem) {
       map[key] = elem;
     });
+    spec.jMapped && each(spec.jMapped, function(key, arr) {
+      $.each(arr, function(i, elem) {
+        map[elem] = map[elem] || 1;
+      });
+    });
     var fn = function(data, subscribe4updates, reverseBinding, mapping) {
+      var propSettings = {subscribe4updates: subscribe4updates, reverseBinding: reverseBinding, mapping: mapping};
       subscribe4updates = (subscribe4updates === undefined) ? true : subscribe4updates;
-      $.each(map, function (key, elem) {
-        var fnKey = "_j" + key,
-          actualKey = (mapping && mapping[key]) ? mapping[key] : key,
-          val = data[actualKey],
-          oldData,
-          handler,
+      each(map, function (key, elem) {
+        var actualKey = (mapping && mapping[key]) ? mapping[key] : key,
+          val = $.isFunction(actualKey) ? actualKey.apply(data) : data[actualKey],
           elemType = viewOrTm._jiantSpec[key];
-        if (spec[key].customRenderer || (data && val !== undefined && val !== null && !isServiceName(key))) {
-          elem = viewOrTm[key];
-          var actualVal = $.isFunction(val) ? val.apply(data) : val;
-          getRenderer(spec[key], elemType)(data, elem, actualVal, false, viewOrTm);
-          if (subscribe4updates && $.isFunction(data.on)&& (spec[key].customRenderer || $.isFunction(val))) { // 3rd ?
-            if (fn[fnKey]) {
-              oldData = fn[fnKey][0];
-              oldData && oldData.off(fn[fnKey][1]);
-              fn[fnKey][2] && elem.off && elem.off("change", fn[fnKey][2]);
+        if ((spec[key] && spec[key].customRenderer) || customElementRenderers[elemType] || (spec.jMapping && spec.jMapping[key])
+          || (data && val !== undefined && val !== null && !isServiceName(key) && !(val instanceof $))) {
+          var actualVal = isFunction(val) ? val.apply(data) : val;
+          $.each([key].concat(spec.jMapping && spec.jMapping[key]? spec.jMapping[key] : []), function(i, compKey) {
+            if (compKey === key && spec.jMapped && spec.jMapped[compKey]) {
+              return;
             }
-            if (!$.isFunction(val)) { // ?
-              actualKey = null;
+            var compElem = viewOrTm[compKey],
+              compType = viewOrTm._jiantSpec[compKey],
+              fnKey = "_j" + compKey;
+            getRenderer(spec[compKey], compType)(data, compElem, actualVal, false, viewOrTm, propSettings);
+            if (subscribe4updates && isFunction(data.on) && (spec[compKey].customRenderer || isFunction(val))) { // 3rd ?
+              if (fn[fnKey]) {
+                var oldData = fn[fnKey][0];
+                oldData && oldData.off(fn[fnKey][1]);
+                fn[fnKey][2] && compElem.off && compElem.off("change", fn[fnKey][2]);
+              }
+              if (!isFunction(val)) { // ?
+                actualKey = null;
+              }
+              var handler = data.on(actualKey, function(obj, newVal) {
+                if (arguments.length === 2 && newVal === "remove") {
+                  return;
+                }
+                getRenderer(spec[compKey], compType)(data, compElem, newVal, true, viewOrTm, propSettings);
+              });
+              fn[fnKey] = [data, handler];
             }
-            handler = data.on(actualKey, function(obj, newVal) {
-              if (arguments.length == 2 && newVal == "remove") {
-                return;
-              }
-              getRenderer(spec[key], elemType)(data, elem, newVal, true, viewOrTm)
-            });
-            fn[fnKey] = [data, handler];
-          }
-          if (reverseBinding) {
-            var backHandler = function(event) {
-              var tagName = elem[0].tagName.toLowerCase(),
-                tp = elem.attr("type"),
-                etype = viewOrTm._jiantSpec[key];
-              function convert(val) {
-                return val === "undefined" ? undefined : val;
-              }
-              function elem2arr(elem) {
-                var arr = [];
-                $.each(elem, function (idx, item) {!!$(item).prop("checked") && arr.push(convert($(item).val()));});
-                return arr;
-              }
-              function joinOrUndef(arr) {
-                return arr.length == 0 || (arr.length == 1 && arr[0] === undefined) ? undefined : arr.join();
-              }
-              if (val && $.isFunction(val)) {
-                if (etype === jiant.inputSet) {
-                  val.call(data, elem2arr(elem));
-                } else if (etype === jiant.inputSetAsString) {
-                  val.call(data, joinOrUndef(elem2arr(elem)));
-                } else {
-                  if (tagName == "input" && tp == "checkbox") {
-                    val.call(data, !!elem.prop("checked"));
-                  } else if (tagName == "input" && tp == "radio") {
-                    val.call(data, joinOrUndef(elem2arr(elem)));
-                  } else if (tagName in {"input": 1,  "select": 1, "textarea": 1}) {
-                    val.call(data, elem.val()); // don't convert due to user may input "undefined" as string
-                  } else if (tagName == "img") {
-                    val.call(data, elem.attr("src"));
-                    // no actual event for changing html, manual 'change' trigger supported by this code
+            if (reverseBinding && compElem && compElem.change) {
+              var backHandler = function(event) {
+                var tagName = compElem[0].tagName.toLowerCase(),
+                  tp = compElem.attr("type"),
+                  etype = viewOrTm._jiantSpec[compKey];
+                function convert(val) {
+                  return val === "undefined" ? undefined : val;
+                }
+                function elem2arr(elem) {
+                  var arr = [];
+                  each(elem, function (idx, item) {!!$(item).prop("checked") && arr.push(convert($(item).val()));});
+                  return arr;
+                }
+                function joinOrUndef(arr) {
+                  return arr.length === 0 || (arr.length === 1 && arr[0] === undefined) ? undefined : arr.join();
+                }
+                if (val && isFunction(val)) {
+                  if (etype === jiant.inputSet) {
+                    val.call(data, elem2arr(compElem));
+                  } else if (etype === jiant.inputSetAsString) {
+                    val.call(data, joinOrUndef(elem2arr(compElem)));
                   } else {
-                    val.call(data, elem.html());
+                    if (tagName === "input" && tp === "checkbox") {
+                      val.call(data, !!compElem.prop("checked"));
+                    } else if (tagName === "input" && tp === "radio") {
+                      val.call(data, joinOrUndef(elem2arr(compElem)));
+                    } else if (tagName in {"input": 1,  "select": 1, "textarea": 1}) {
+                      val.call(data, compElem.val()); // don't convert due to user may input "undefined" as string
+                    } else if (tagName === "img") {
+                      val.call(data, compElem.attr("src"));
+                      // no actual event for changing html, manual 'change' trigger supported by this code
+                    } else {
+                      val.call(data, compElem.html());
+                    }
                   }
                 }
-              }
-            };
-            elem.change && elem.change(backHandler);
-            fn[fnKey] && fn[fnKey].push(backHandler);
-          }
+              };
+              // jiant.logInfo(viewOrTm, compKey, compElem);
+              compElem.change(backHandler);
+              fn[fnKey] && fn[fnKey].push(backHandler);
+            }
+          });
         }
       });
-      if (spec.customRenderer && $.isFunction(spec.customRenderer)) {
+      var that = this;
+      updateShowHideCls(this, data);
+      if (subscribe4updates && isFunction(data.on)) {
+        var fnKey = "_jShowHideCls";
+        if (fn[fnKey]) {
+          var oldData = fn[fnKey][0];
+          oldData && oldData.off(fn[fnKey][1]);
+        }
+        var handler = data.on(function(obj, newVal) {
+          if (arguments.length === 2 && newVal === "remove") {
+            return;
+          }
+          updateShowHideCls(that, data);
+        });
+        fn[fnKey] = [data, handler];
+      }
+
+      function updateShowHideCls(view, data) {
+        view._j.showing && each(view._j.showing, function(i, item) {
+          var on;
+          if (item.fn) {
+            on = item.fld.call(data, data);
+          } else {
+            on = isFunction(data[item.fld]) ? data[item.fld]() : data[item.fld];
+          }
+          if ("exactVal" in item) {
+            on = $.isArray(item.exactVal) ? $.inArray(on, item.exactVal) >= 0 : on === item.exactVal;
+          }
+          on = item.dir ? on : !on;
+          item.el[on ? "show" : "hide"]();
+        });
+        view._j.switchClass && each(view._j.switchClass, function(i, item) {
+          var on;
+          if (item.fn) {
+            on = item.fld.call(data, data);
+          } else {
+            on = isFunction(data[item.fld]) ? data[item.fld]() : data[item.fld];
+          }
+          if ("exactVal" in item) {
+            on = $.isArray(item.exactVal) ? $.inArray(on, item.exactVal) >= 0 : on === item.exactVal;
+          }
+          on = item.dir ? on : !on;
+          item.el[on ? "addClass" : "removeClass"](item.cls);
+        });
+      }
+      if (spec.customRenderer && isFunction(spec.customRenderer)) {
         spec.customRenderer(data, viewOrTm);
+      }
+      if (jiant.DEV_MODE) {
+        viewOrTm._jiantPropagationInfo = {
+          modelName: data ? data.jModelName : "",
+          data: data,
+          subscribe4updates: subscribe4updates,
+          reverseBinding: reverseBinding,
+          mapping: mapping,
+          trace: jiant.getStackTrace()
+        };
       }
     };
     viewOrTm.propagate = fn;
     viewOrTm.unpropagate = function() {
-      $.each(map, function (key, elem) {
+      each(map, function (key, elem) {
         var fnKey = "_j" + key;
         if (fn[fnKey]) {
           var oldData = fn[fnKey][0];
@@ -912,22 +1186,38 @@
           fn[fnKey][2] && elem.off && elem.off("change", fn[fnKey][2]);
         }
       });
+      if (jiant.DEV_MODE) {
+        delete viewOrTm._jiantPropagationInfo;
+      }
     }
   }
 
   function getRenderer(obj, elemType) {
-    if (obj && obj.customRenderer && $.isFunction(obj.customRenderer)) {
+    elemType = getComponentType(elemType);
+    if (obj && obj.customRenderer && isFunction(obj.customRenderer)) {
       return obj.customRenderer;
+    } else if (customElementRenderers[elemType]) {
+      return customElementRenderers[elemType];
     } else if (elemType === jiant.inputSet) {
       return updateInputSet;
+    } else if (elemType === jiant.href) {
+      return updateHref;
     } else if (elemType === jiant.imgBg) {
       return updateImgBg;
     } else if (elemType === jiant.inputSetAsString) {
       return function(obj, elem, val, isUpdate, viewOrTemplate) {
-        updateInputSet(obj, elem, !val ? [val] : $.isArray(val) ? val : $.isNumeric(val) ? [val] : ("" + val).split(","), isUpdate, viewOrTemplate);
+        updateInputSet(obj, elem, !val ? [val] : isArray(val) ? val : $.isNumeric(val) ? [val] : ("" + val).split(","), isUpdate, viewOrTemplate);
       };
     } else {
       return updateViewElement;
+    }
+  }
+
+  function updateHref(obj, elem, val, isUpdate, viewOrTemplate) {
+    if (!!val) {
+      elem.attr("href", val);
+    } else {
+      elem.attr("href", "");
     }
   }
 
@@ -943,12 +1233,12 @@
     if (!elem || !elem[0]) {
       return;
     }
-    $.each(elem, function(idx, item) {
+    each(elem, function(idx, item) {
       item = $(item);
-      var check = item.val() == val + "";
-      if (!check && $.isArray(val)) {
-        $.each(val, function(i, subval) {
-          if (subval + "" == item.val() + "") {
+      var check = item.val() === val + "";
+      if (!check && isArray(val)) {
+        each(val, function(i, subval) {
+          if (subval + "" === item.val() + "") {
             check = true;
             return false;
           }
@@ -959,23 +1249,23 @@
   }
 
   function updateViewElement(obj, elem, val, isUpdate, viewOrTemplate) {
-    if (! elem || ! elem[0]) {
+    if (!elem || !elem[0]) {
       return;
     }
     var tagName = elem[0].tagName.toLowerCase();
     if (tagName in {"input": 1, "textarea": 1, "select": 1}) {
       var el = $(elem[0]),
         tp = el.attr("type");
-      if (tp == "checkbox") {
+      if (tp === "checkbox") {
         elem.prop("checked", !!val);
-      } else if (tp == "radio") {
-        $.each(elem, function(idx, subelem) {
-          $(subelem).prop("checked", subelem.value == (val + ""));
+      } else if (tp === "radio") {
+        each(elem, function(idx, subelem) {
+          $(subelem).prop("checked", subelem.value === (val + ""));
         });
       } else {
         (val == undefined || val == null) ? elem.val(val) : elem.val(val + "");
       }
-    } else if (tagName == "img") {
+    } else if (tagName === "img") {
       elem.attr("src", val);
     } else {
       elem.html(val === undefined ? "" : val);
@@ -983,87 +1273,202 @@
   }
 
   function _bindViews(appRoot, root, appUiFactory) {
-    $.each(root, function(viewId, viewContent) {
+    each(root, function(viewId, viewContent) {
       var prefix = ("appPrefix" in viewContent) ? viewContent.appPrefix : appRoot.appPrefix,
-        view = appUiFactory.view(prefix, viewId, viewContent);
+        view = appUiFactory.view(prefix, viewId, viewContent, appRoot.bindByTag);
+      if ("_scan" in viewContent) {
+        scanForSpec(prefix, viewContent, view);
+      }
       bindView(appRoot, viewId, viewContent, view);
     });
   }
 
   function bindView(appRoot, viewId, viewContent, view) {
+    if (viewContent._jiantSpec) {
+      var spec = viewContent._jiantSpec;
+      for (var key in viewContent) {
+        delete viewContent[key];
+      }
+      appRoot.views[viewId] = viewContent;
+      each(spec, function(key, val) {
+        viewContent[key] = val;
+      })
+    }
     var prefix = ("appPrefix" in viewContent) ? viewContent.appPrefix : appRoot.appPrefix ? appRoot.appPrefix : "",
       viewOk = ensureExists(prefix, appRoot.dirtyList, view, prefix + viewId);
     viewOk && _bindContent(appRoot, viewContent, viewId, view, prefix);
     ensureSafeExtend(viewContent, view);
-    assignPropagationFunction(viewId, viewContent, viewContent);
+    makePropagationFunction(viewId, viewContent, viewContent);
     $.extend(viewContent, view);
-    maybeAddDevHook(view, viewId, undefined);
-    $.each(listeners, function(i, l) {l.boundView && l.boundView(appRoot, appRoot.views, viewId, prefix, viewContent)});
+    if (viewContent.jInit && isFunction(viewContent.jInit)) {
+      viewContent.jInit.call(viewContent, appRoot);
+    }
+    each(listeners, function(i, l) {l.boundView && l.boundView(appRoot, appRoot.views, viewId, prefix, viewContent)});
+  }
+
+  function getAutoType(child, name) {
+    switch (child.tagName.toUpperCase()) {
+      case "INPUT": return jiant.input;
+      case "IMG": return jiant.image;
+      case "FORM": return jiant.form;
+      case "BUTTON": return jiant.ctl;
+      case "A": return jiant.href;
+      default:
+        var lowerName = name.toLowerCase();
+        if (lowerName.indexOf("container") >= 0) {
+          return jiant.container;
+        } else if (lowerName.indexOf("ctl") >= 0) {
+          return jiant.ctl;
+        }
+        return jiant.label;
+    }
+  }
+
+  function scanForSpec(prefix, content, elem) {
+    var children = elem[0].getElementsByTagName("*");
+    $.each(children, function(i, child) {
+      var classes = child.className.split(/\s+/);
+      $.each(classes, function(j, cls) {
+        if (cls.startsWith(prefix)) {
+          var name = cls.substring(prefix.length);
+          if (! (name in content)) {
+            content[name] = getAutoType(child, name);
+          }
+        }
+      });
+    });
   }
 
 // ------------ templates ----------------
 
-  function parseTemplate2Text(tm, data) {
-    return parseTemplate(tm, data);
+  function parseTemplate2Text(tm, data, cacheKey) {
+    return parseTemplate(tm, data, cacheKey);
+  }
+
+  function fillClassMappings(elem, classMapping) {
+    var childs = elem.find("*"),
+      selfs = elem.filter("*");
+    $.each($.merge(selfs, childs), function(i, item) {
+      if ($.isFunction(item.className.split) && item.className.length > 0) {
+        var clss = item.className.split(" ");
+        $.each(clss, function(i, cls) {
+          classMapping[cls] = classMapping[cls] || [];
+          classMapping[cls].push(item);
+        });
+      }
+    });
+  }
+
+  function fillTagMappings(elem, tagMapping) {
+    var childs = elem.find("*"),
+      selfs = elem.filter("*");
+    $.each($.merge(selfs, childs), function(i, item) {
+      var tag = item.tagName.toLowerCase();
+      tagMapping[tag] = tagMapping[tag] || [];
+      tagMapping[tag].push(item);
+    });
   }
 
   function _bindTemplates(appRoot, root, appUiFactory) {
-    $.each(root, function(tmId, tmContent) {
+    each(root, function(tmId, tmContent) {
       var prefix = ("appPrefix" in tmContent) ? tmContent.appPrefix : appRoot.appPrefix,
-        tm = appUiFactory.template(prefix, tmId, tmContent);
+        tm = appUiFactory.view(prefix, tmId, tmContent, appRoot.bindByTag);
       root[tmId]._jiantSpec = {};
       root[tmId]._jiantType = jTypeTemplate;
-      $.each(tmContent, function (componentId, elemTypeOrArr) {
+      if ("_scan" in tmContent) {
+        scanForSpec(prefix, tmContent, tm);
+      }
+      var elemTypes = {};
+      each(tmContent, function (componentId, elemTypeOrArr) {
         var elemType = getComponentType(elemTypeOrArr);
-        if (!(componentId in {appPrefix: 1, impl: 1, _jiantSpec: 1, _jiantType: 1})) {
+        elemTypes[componentId] = elemType;
+        if (!(componentId in {appPrefix: 1, impl: 1, compCbSet: 1, _jiantSpec: 1, _jiantType: 1, _scan: 1, jInit: 1, _j: 1, customRenderer: 1})) {
           root[tmId]._jiantSpec[componentId] = elemType;
           if (elemType === jiant.lookup) {
             jiant.logInfo("    loookup element, no checks/bindings: " + componentId);
           } else if (elemType === jiant.meta) {
             //skipping, app meta info
           } else if (elemType === jiant.data) {
-            tmContent[componentId] = {jiant_data: 1};
+            tmContent[componentId] = {jiant_data: 1, jiant_data_spec: elemTypeOrArr};
             tmContent[componentId].customRenderer = function(obj, elem, val, isUpdate, viewOrTemplate) {
               viewOrTemplate[componentId](val);
             };
           } else if (elemType === jiant.cssMarker || elemType === jiant.cssFlag) {
-            setupCssFlagsMarkers(tmContent, componentId);
+            setupCssFlagsMarkers(tmContent, componentId, elemType, getAt(elemTypeOrArr, 1), getAt(elemTypeOrArr, 2));
           } else {
-            var comp = appUiFactory.viewComponent(tm, tmId, prefix, componentId, elemType);
+            var comp = appUiFactory.viewComponent(tm, tmId, prefix, componentId, elemType, appRoot.bindByTag);
             ensureExists(prefix, appRoot.dirtyList, comp, prefix + tmId, prefix + componentId, isFlagPresent(elemTypeOrArr, jiant.optional));
             tmContent[componentId] = {};
+            if (elemType === jiant.comp) {
+              var tmName = getAt(elemTypeOrArr, 1);
+              tmContent[componentId].customRenderer = getCompRenderer(appRoot, tmName, componentId, elemTypeOrArr);
+              if (!(tmName in root)) {
+                error("jiant.comp element refers to non-existing template name: " + tmName + ", tm.elem " + tmId + "." + componentId);
+              }
+            }
           }
         }
       });
       ensureExists(prefix, appRoot.dirtyList, tm, prefix + tmId);
+      root[tmId].templateSource = function() {return tm.html().trim()};
       root[tmId].parseTemplate = function(data, subscribeForUpdates, reverseBind, mapping) {
         var retVal = $("<!-- -->" + parseTemplate(tm, data, tmId, mapping)); // add comment to force jQuery to read it as HTML fragment
         retVal._jiantSpec = root[tmId]._jiantSpec;
-        $.each(tmContent, function (elem, elemTypeOrArr) {
+        retVal._j = {};
+        var classMappings = {},
+          tagMappings = {};
+        if (!appRoot.bindByTag || appRoot.bindByTag === "after-class" || appRoot.bindByTag === "before-class") {
+          fillClassMappings(retVal, classMappings);
+        }
+        if (!!appRoot.bindByTag) {
+          fillTagMappings(retVal, tagMappings);
+        }
+        function getUsingBindBy(componentId) {
+          var byCls = (prefix + componentId) in classMappings ?  $(classMappings[prefix + componentId]) : null,
+            byTag = componentId in tagMappings ? $(tagMappings[componentId.toLowerCase()]) : null,
+            bindBy = appRoot.bindByTag;
+          return !bindBy ? byCls
+            : bindBy === 'after-class' ? (byCls || byTag)
+              : bindBy === 'before-class' ? (byTag || byCls)
+                : byTag;
+        }
+        each(tmContent, function (componentId, elemTypeOrArr) {
+          if (isServiceName(componentId)) {
+            return;
+          }
           var elemType = getComponentType(elemTypeOrArr);
           if (elemType === jiant.lookup) {
-            info("    loookup element, no checks/bindings: " + elem);
-            setupLookup(retVal, elem, retVal, prefix);
+            info("    loookup element, no checks/bindings: " + componentId);
+            setupLookup(retVal, componentId, retVal, prefix);
           } else if (elemType === jiant.meta) {
           } else if (elemType.jiant_data) {
-            setupDataFunction(retVal, elem);
-          } else if (! (elem in {"parseTemplate": 1, "parseTemplate2Text": 1, "appPrefix": 1, "impl": 1, "_jiantSpec": 1})) {
-            retVal[elem] = $.merge(retVal.filter("." + prefix + elem), retVal.find("." + prefix + elem));
-            setupExtras(appRoot, retVal[elem], root[tmId]._jiantSpec[elem], tmId, elem, retVal);
-            maybeAddDevHook(retVal[elem], tmId, elem);
+            setupDataFunction(retVal, root[tmId], componentId, getAt(elemTypeOrArr.jiant_data_spec, 1), getAt(elemTypeOrArr.jiant_data_spec, 2));
+          } else if (elemTypes[componentId] === jiant.cssMarker || elemTypes[componentId] === jiant.cssFlag) {
+          } else if (! (componentId in {parseTemplate: 1, parseTemplate2Text: 1, templateSource: 1, appPrefix: 1,
+              impl: 1, compCbSet: 1, _jiantSpec: 1, _scan: 1, _j: 1, _jiantType: 1, jInit: 1})) {
+            retVal[componentId] = getUsingBindBy(componentId);
+            if (retVal[componentId]) {
+              setupExtras(appRoot, retVal[componentId], root[tmId]._jiantSpec[componentId], tmId, componentId, retVal, prefix);
+              retVal[componentId]._j = {
+                parent: retVal
+              };
+            }
           }
         });
         retVal.splice(0, 1); // remove first comment
-        assignPropagationFunction(tmId, tmContent, retVal);
+        makePropagationFunction(tmId, tmContent, retVal);
+        if (root[tmId].jInit && isFunction(root[tmId].jInit)) {
+          root[tmId].jInit.call(retVal, appRoot);
+        }
         data && retVal.propagate(data, !!subscribeForUpdates, !!reverseBind, mapping);
-        $.each(listeners, function(i, l) {l.parsedTemplate && l.parsedTemplate(appRoot, root, tmId, root[tmId], data, retVal)});
+        each(listeners, function(i, l) {l.parsedTemplate && l.parsedTemplate(appRoot, root, tmId, root[tmId], data, retVal)});
         retVal.addClass("jianttm_" + tmId);
         return retVal;
       };
-      root[tmId].parseTemplate2Text = function(data) {
-        return parseTemplate(tm, data);
+      root[tmId].parseTemplate2Text = function(data, mapping) {
+        return parseTemplate(tm, data, tmId, mapping);
       };
-      $.each(listeners, function(i, l) {l.boundTemplate && l.boundTemplate(appRoot, root, tmId, prefix, root[tmId])});
+      each(listeners, function(i, l) {l.boundTemplate && l.boundTemplate(appRoot, root, tmId, prefix, root[tmId])});
     });
   }
 
@@ -1091,40 +1496,45 @@
       Collection = function(data) {
         if (data) {
           var that = this;
-          $.each(data, function(idx, obj) {that.push(obj)});
+          each(data, function(idx, obj) {that.push(obj)});
         }
       },
       specBus = $({}),
       singleton = new Model(),
       objFunctions = ["on", "once", "off", "update", "reset", "remove", "asMap"],
-      repoFunctions = ["updateAll", "add", "all", "remove"];
+      repoFunctions = ["updateAll", "add", "all", "remove", "filter", "toCollection"];
+    Model.prototype.jModelName = modelName;
     if (jiant.DEV_MODE && !spec[repoName]) {
-      jiant.infop("App !!, model !! uses deprecated model repository format, switch to new, with model.jRepo = {} section", appId, modelName);
+      infop("App !!, model !! uses deprecated model repository format, switch to new, with model.jRepo = {} section", appId, modelName);
     }
     spec[defaultsName] = spec[defaultsName] || {};
-    $.each(repoFunctions, function(i, fn) {
+    each(repoFunctions, function(i, fn) {
       repoRoot[fn] = repoRoot[fn] || function(obj) {};
     });
-    $.each(objFunctions, function(i, fn) {
+    each(objFunctions, function(i, fn) {
       spec[fn] = spec[fn] || function(obj) {};
     });
     if (spec.id) {
       repoRoot.findById = repoRoot.findById || function(val) {};
     }
-    $.each(repoRoot, function(fname, funcSpec) {
-      if (isFindByFunction(fname)) {
+    each(repoRoot, function(fname, funcSpec) {
+      if (isFindByFunction(fname, funcSpec)) {
         var listBy = "listBy" + fname.substring(6);
         if (! repoRoot[listBy]) {
           repoRoot[listBy] = funcSpec;
         }
+        if (! repoRoot[listBy + "In"]) {
+          repoRoot[listBy] = funcSpec;
+          repoRoot[listBy + "In"] = funcSpec;
+        }
       }
     });
     if (repoMode) {
-      $.each(repoRoot, function(fname, funcSpec) {
+      each(repoRoot, function(fname, funcSpec) {
         bindFn(repoRoot, fname, funcSpec);
       });
     }
-    $.each(spec, function(fname, funcSpec) {
+    each(spec, function(fname, funcSpec) {
       bindFn(spec, fname, funcSpec);
     });
     spec.asap = proxy("asap");
@@ -1156,16 +1566,16 @@
     repoRoot.add = function(arr) {
       var newArr = new Collection();
       if (arr != undefined && arr != null) {
-        arr = $.isArray(arr) ? arr : [arr];
+        arr = isArray(arr) ? arr : [arr];
         if (arr.length != 0) {
-          $.each(arr, function(idx, item) {
+          each(arr, function(idx, item) {
             var newItem = $.extend({}, spec[defaultsName], item),
               newObj = new Model();
             storage.push(newObj);
             newArr.push(newObj);
-            $.each(newItem, function(name, val) {
+            each(newItem, function(name, val) {
               if (spec[defaultsName][name]) {
-                val = $.isFunction(val) ? val(newItem) : val;
+                val = isFunction(val) ? val(newItem) : val;
               }
               if (isModelAccessor(newObj[name])) {
                 val = isModelAccessor(val) ? val.apply(item) : val;
@@ -1173,19 +1583,13 @@
               }
             });
             addIndexes(newObj);
-            $.each(newItem, function(name, val) {
+            each(newItem, function(name, val) {
               if (isModelAccessor(newObj[name])) {
                 newObj[name](newObj[name](), true, false, undefined);
               }
             });
           });
-          trigger(specBus, "add", [newArr], [newArr]);
-          if (specBus[evt("update")] || specBus[evt()]) {
-            $.each(newArr, function(idx, item) {
-              trigger(specBus, "update", [item], [item, "update"]);
-            });
-          }
-          $.each(newArr, function(idx, item) {
+          each(newArr, function(idx, item) {
             item.on(function(model, action) {
               if (action == "remove") {
                 removeIndexes(item);
@@ -1194,6 +1598,12 @@
               }
             }); // any change, due to findBy synthetic fields
           });
+          trigger(specBus, "add", [newArr], [newArr]);
+          if (specBus[evt("update")] || specBus[evt()]) {
+            each(newArr, function(idx, item) {
+              trigger(specBus, "update", [item], [item, "update"]);
+            });
+          }
         }
       }
       return newArr;
@@ -1205,10 +1615,10 @@
 
     function indexPresent(arr) {
       var present = false;
-      $.each(indexesSpec, function(i, index) {
+      each(indexesSpec, function(i, index) {
         if (index.length == arr.length) {
           var matching = true;
-          $.each(index, function(j, elem) {
+          each(index, function(j, elem) {
             matching = matching && elem === arr[j];
           });
           if (matching) {
@@ -1221,9 +1631,13 @@
     }
 
     function addIndexes(obj) {
-      $.each(indexesSpec, function(i, index) {
+      var presentIdx = storage.indexOf(obj);
+      if (presentIdx < 0) { // already removed object
+        return;
+      }
+      each(indexesSpec, function(i, index) {
         var node = indexes;
-        $.each(index, function(j, name) {
+        each(index, function(j, name) {
           var key = name + "=" + obj[name]();
           node[key] = node[key] || {};
           node = node[key];
@@ -1235,8 +1649,8 @@
     }
 
     function removeIndexes(obj) {
-      $.each(obj[reverseIndexes], function(i, arr) {
-        arr.splice($.inArray(obj, arr), 1);
+      each(obj[reverseIndexes], function(i, arr) {
+        arr.splice(arr.indexOf(obj), 1);
       });
       obj[reverseIndexes] = [];
     }
@@ -1252,16 +1666,22 @@
       return new Collection(storage);
     };
 
+    // ----------------------------------------------- toCollection ----------------------------------------
+
+    repoRoot.toCollection = function(arr) {
+      return new Collection(arr);
+    };
+
     // ----------------------------------------------- updateAll -----------------------------------------------
     repoRoot.updateAll = function(arr, removeMissing, matcherCb) {
-      arr = $.isArray(arr) ? arr : [arr];
+      arr = isArray(arr) ? arr : (arr ? [arr] : []);
       matcherCb = matcherCb ? matcherCb : function(modelObj, outerObj) {return modelObj.id ? modelObj.id() == outerObj.id : false;};
       var toRemove = [];
       var toAdd = [];
-      $.each(arr, function(idx, item) {toAdd.push(item);});
-      $.each(storage, function(idx, oldItem) {
+      each(arr, function(idx, item) {toAdd.push(item);});
+      each(storage, function(idx, oldItem) {
         var matchingObj;
-        $.each(arr, function(idx, newItem) {
+        each(arr, function(idx, newItem) {
           if (matcherCb(oldItem, newItem)) {
             matchingObj = newItem;
             return false;
@@ -1273,14 +1693,14 @@
         matchingObj && idx >= 0 && toAdd.splice(idxAdd, 1);
         matchingObj && oldItem.update(matchingObj);
       });
-      removeMissing && $.each(toRemove, function(idx, item) {
+      removeMissing && each(toRemove, function(idx, item) {
         repoRoot.remove(item);
       });
       toAdd.length > 0 && repoRoot.add(toAdd);
     };
 
-    $.each(spec[defaultsName], function(key, val) {
-      val = $.isFunction(val) ? val(spec) : val;
+    each(spec[defaultsName], function(key, val) {
+      val = isFunction(val) ? val(spec) : val;
       if (isModelAccessor(spec[key])) {
         spec[key](val);
       }
@@ -1294,8 +1714,8 @@
 
     // ----------------------------------------------- bind other functions -----------------------------------------------
 
-    function isFindByFunction(fname) {
-      return fname.indexOf("findBy") == 0 && fname.length > 6 && isUpperCaseChar(fname, 6);
+    function isFindByFunction(fname, funcSpec) {
+      return fname.indexOf("findBy") === 0 && fname.length > 6 && isUpperCaseChar(fname, 6) && isEmptyFunction(funcSpec);
     }
 
     function trigger(bus, fname, args, argsPerObj) {
@@ -1315,9 +1735,24 @@
     }
 
     function assignExtraHandlers(obj) {
+      obj.enqueue = function(field, val) {
+        var hndlr, that = this;
+        function maybeSet() {
+          var current = that[field]();
+          if (current === null || current === undefined) {
+            hndlr && hndlr.off();
+            that[field](val);
+            return true;
+          }
+          return false;
+        }
+        if (!maybeSet()) {
+          hndlr = this[field+"_on"](maybeSet);
+        }
+      };
       obj.nowAndOn = function(field, cb) {
         cb.apply(this, [this, this[field]()]);
-        this.on(field, cb);
+        return this.on(field, cb);
       };
       obj.asapAndOn = function(field, cb) {
         var that = this;
@@ -1337,7 +1772,7 @@
           bus[eventName] = (bus[eventName] || 0) + 1;
           bus.one(eventName, function () {
             bus[eventName]--;
-            var args = $.makeArray(arguments);
+            var args = copyArr(arguments);
             args.splice(0, 1);
             cb && cb.apply(that, args);
           })
@@ -1347,14 +1782,15 @@
 
     function assignOnOffHandlers(obj, overrideField) {
       obj.on = function(field, cb) {
-        if ($.isFunction(field)) {
+        if (isFunction(field)) {
           cb = field;
           field = overrideField;
         }
-        var bus = this[objectBus],
+        var that = this,
+          bus = this[objectBus],
           eventName = evt(field);
         var handler = function(evt) {
-          var args = $.makeArray(arguments);
+          var args = copyArr(arguments);
           args.splice(0, 1);
           var res = cb && cb.apply(cb, args);
           if (res === false) {
@@ -1367,69 +1803,70 @@
         bus[eventName] = (bus[eventName] || 0) + 1;
         bus.on(eventName, handler);
         handler.off = function() {
-          obj.off(handler);
+          that.off(handler);
         };
         handler.eventName = eventName;
         handler.cb = cb;
         return handler;
       };
       obj.once = function(field, cb) {
+        if (isFunction(field)) {
+          cb = field;
+          field = overrideField;
+        }
         var that = this,
-            handler = obj.on(field, function() {
-              obj.off(handler);
-              cb && cb.apply(that, arguments);
-            });
+          handler = that.on(field, function() {
+            that.off(handler);
+            cb && cb.apply(that, arguments);
+          });
       };
-      obj.off = function(handler) {
+      obj.off = function(handlerOrArr) {
         var bus = this[objectBus];
-        bus[handler.eventName]--;
-        bus.handlers[handler.eventName].splice(bus.handlers[handler.eventName].indexOf(handler.cb), 1);
-        return bus.off(handler.eventName, handler);
+        handlerOrArr = isArray(handlerOrArr) ? handlerOrArr : [handlerOrArr];
+        each(handlerOrArr, function(i, handler) {
+          bus[handler.eventName]--;
+          bus.handlers[handler.eventName].splice(bus.handlers[handler.eventName].indexOf(handler.cb), 1);
+          return bus.off(handler.eventName, handler);
+        });
       };
       obj.subscribers = function(field) {
         var bus = this[objectBus],
-            eventName = evt(field);
-        return bus.handlers[eventName];
+          eventName = evt(field);
+        return bus.handlers ? bus.handlers[eventName] : undefined;
       }
     }
 
     function bindFn(fnRoot, fname, funcSpec) {
       var objMode = repoMode && fnRoot !== spec[repoName];
-      if (fname == defaultsName && $.isPlainObject(funcSpec)) {
-      } else if (fname == repoName && $.isPlainObject(funcSpec)) {
-      } else if (fname == "all" && !objMode) {
-      } else if (fname == "off") {
+      if (fname === defaultsName && $.isPlainObject(funcSpec)) {
+      } else if (fname === repoName && $.isPlainObject(funcSpec)) {
+      } else if (fname === "addAll") {
+        alert("JIANT: Model function 'addAll' removed since 1.37, use previous versions or replace it by 'add'");
+      } else if (!objMode && fname in {"updateAll": 1, "add": 1, "toCollection": 1, "all": 1}) {
+      } else if (fname in {"off": 1, "nowAndOn": 1, "asapAndOn": 1, "asap": 1, "once": 1, "enqueue": 1}) {
         collectionFunctions.push(fname);
-      } else if (fname == "nowAndOn") {
-        collectionFunctions.push(fname);
-      } else if (fname == "asapAndOn") {
-        collectionFunctions.push(fname);
-      } else if (fname == "asap") {
-        collectionFunctions.push(fname);
-      } else if (fname == "once") {
-        collectionFunctions.push(fname);
-      } else if (fname == "on") {
+      } else if (fname === "on") {
         collectionFunctions.push(fname);
         spec[fname] = proxy(fname);
         assignOnOffHandlers(Model.prototype);
         assignExtraHandlers(Model.prototype);
         assignOnOffHandlers(spec);
-      } else if (fname == "update") {
+      } else if (fname === "update") {
         collectionFunctions.push(fname);
         spec[fname] = proxy(fname);
         Model.prototype[fname] = function(objFrom, treatMissingAsUndefined) {
           var smthChanged = false,
             toTrigger = {},
             that = this;
-          if (arguments.length == 0) {
+          if (arguments.length === 0) {
             smthChanged = true;
           } else {
-            treatMissingAsUndefined && $.each(this[modelStorage], function(key, val) {
+            treatMissingAsUndefined && each(this[modelStorage], function(key, val) {
               (key in objFrom) || (objFrom[key] = undefined);
             });
-            $.each(objFrom, function(key, val) {
+            each(objFrom, function(key, val) {
               if (isModelAccessor(that[key])) {
-                val = $.isFunction(val) ? val() : val;
+                val = isFunction(val) ? val() : val;
                 var oldVal = that[key]();
                 if (oldVal !== val) {
                   toTrigger[key] = oldVal;
@@ -1438,7 +1875,7 @@
                 }
               }
             });
-            $.each(toTrigger, function(key, oldVal) {
+            each(toTrigger, function(key, oldVal) {
               that[key](that[key](), true, false, oldVal);
             });
           }
@@ -1447,18 +1884,14 @@
             trigger(specBus, fname, [this], [this, fname]);
           }
         };
-      } else if (fname == "updateAll" && !objMode) {
-      } else if (fname == "addAll") {
-        alert("JIANT: Model function 'addAll' removed since 1.37, use previous versions or replace it by 'add'");
-      } else if (fname == "add" && !objMode) {
-      } else if (fname == "remove") {
-      } else if (fname.indexOf("sum") == 0 && fname.length > 3 && isUpperCaseChar(fname, 3) && !objMode) {
+      } else if (fname === "remove") {
+      } else if (fname.indexOf("sum") === 0 && fname.length > 3 && isUpperCaseChar(fname, 3) && !objMode) {
         var arr = fname.substring(3).split("And");
         repoRoot[fname] = function() {
           function subsum(all, fieldName) {
             var ret;
-            $.each(all, function(i, item) {
-              if (item[fieldName] && $.isFunction(item[fieldName])) {
+            each(all, function(i, item) {
+              if (item[fieldName] && isFunction(item[fieldName])) {
                 var val = item[fieldName]();
                 ret = ret === undefined ? val : val === undefined ? undefined : (ret + val);
               }
@@ -1466,39 +1899,82 @@
             return ret;
           }
           var ret;
-          $.each(arr, function(idx, name) {
+          each(arr, function(idx, name) {
             var fieldName = name.substring(0, 1).toLowerCase() + name.substring(1);
             var perField = subsum(storage, fieldName);
             ret = ret === undefined ? perField : perField === undefined ? undefined : (ret + perField);
           });
           return ret;
         }
-      } else if (isFindByFunction(fname) && !objMode) {
+      } else if (fname === "filter" && !objMode) {
+        repoRoot[fname] = function(cb) {
+          var ret = [];
+          each(repoRoot.all(), function(i, obj) {
+            if (cb(obj)) {
+              ret.push(obj);
+            }
+          });
+          return new Collection(ret);
+        };
+      } else if (isFindByFunction(fname, funcSpec) && !objMode) {
         repoRoot[fname] = function() {
           return repoRoot["listBy" + fname.substring(6)].apply(repoRoot, arguments)[0];
         }
-      } else if (fname.indexOf("listBy") == 0 && fname.length > 6 && isUpperCaseChar(fname, 6) && !objMode) {
-        var arr = fname.substring(6).split("And");
-        $.each(arr, function(idx, name) {
-          arr[idx] = name.substring(0, 1).toLowerCase() + name.substring(1);
-          if (! spec[arr[idx]]) {
-            errorp("Non existing field used by model method !!, field name: !!, model name: !!, app id: !!", fname, arr[idx], modelName, appId);
+      } else if (fname.indexOf("listBy") === 0 && fname.length > 6 && isUpperCaseChar(fname, 6) && !objMode && isEmptyFunction(funcSpec)) {
+        var arrNames = fname.substring(6).split("And");
+        var inMap = {};
+        var usesIns = false;
+        each(arrNames, function(idx, name) {
+          if (name.endsWith("In") && !spec[lowerFirst(name)]) {
+            name = name.substring(0, name.length - 2);
+            inMap[lowerFirst(name)] = true;
+            usesIns = true;
+          }
+          arrNames[idx] = lowerFirst(name);
+          if (!spec[arrNames[idx]]) {
+            errorp("Non existing field used by model method !!, field name: !!, model name: !!, app id: !!", fname, arrNames[idx], modelName, appId);
           }
         });
-        if (!indexPresent(arr)) {
-          indexesSpec.push(arr);
+        if (!indexPresent(arrNames)) {
+          indexesSpec.push(arrNames);
         }
         repoRoot[fname] = function() {
           var node = indexes,
             args = arguments;
-          $.each(arr, function(i, name) {
-            var key = name + "=" + args[i];
-            node = node[key];
-            if (node === undefined) {
-              return false;
-            }
-          });
-          return new Collection(node === undefined ? [] : node.content);
+          if (! usesIns) {
+            each(arrNames, function(i, name) {
+              var key = name + "=" + args[i];
+              node = node[key];
+              if (node === undefined) {
+                return false;
+              }
+            });
+            return new Collection(node === undefined ? [] : node.content);
+          } else {
+            var nodes = [indexes];
+            each(arrNames, function(i, name) {
+              var newNodes = [];
+              args[i] = (inMap[name] && isArray(args[i])) ? args[i] : [args[i]];
+              each(args[i], function(j, arg) {
+                var key = name + "=" + arg;
+                each(nodes, function(k, node) {
+                  if (node[key] !== undefined) {
+                    newNodes.push(node[key]);
+                  }
+                });
+              });
+              nodes = newNodes;
+            });
+            var ret = [];
+            each(nodes, function(i, node) {
+              each(node.content, function(j, item) {
+                if ($.inArray(ret, item) < 0) {
+                  ret.push(item);
+                }
+              });
+            });
+            return new Collection(ret);
+          }
         }
       } else if (fname.indexOf("set") == 0 && fname.length > 3 && isUpperCaseChar(fname, 3)) {
         collectionFunctions.push(fname);
@@ -1507,7 +1983,7 @@
         Model.prototype[fname] = function() {
           var outerArgs = arguments,
             newVals = {};
-          $.each(arr, function(idx, name) {
+          each(arr, function(idx, name) {
             var fieldName = name.substring(0, 1).toLowerCase() + name.substring(1);
             newVals[fieldName] = outerArgs[idx];
           });
@@ -1519,7 +1995,7 @@
         spec[fname] = proxy(fname);
         Model.prototype[fname] = function (val) {
           var that = this;
-          $.each(this, function(name, fn) {
+          each(this, function(name, fn) {
             isModelAccessor(fn) && that[name](val, true);
           });
         }
@@ -1540,12 +2016,12 @@
           }
           function obj2map(obj) {
             var ret = {};
-            $.each(obj, function(key, val) {
+            each(obj, function(key, val) {
               val2map(ret, val, key);
             });
             return ret;
           }
-          $.each(that, function(key) {
+          each(that, function(key) {
             var actualKey = (mapping && mapping[key]) ? mapping[key] : key,
               fn = that[actualKey];
             if (isModelAccessor(fn) || isModelSupplier(fn)) {
@@ -1555,7 +2031,7 @@
           });
           return ret;
         }
-      } else if ((isModelAccessor(funcSpec) || isEmptyFunction(funcSpec)) && ! isEventHandlerName(fname)) {
+      } else if ((isModelAccessor(funcSpec) || isEmptyFunction(funcSpec)) && ! isEventHandlerName(fname) && (objMode || !repoMode)) {
         var trans = funcSpec === jiant.transientFn;
         collectionFunctions.push(fname);
         collectionFunctions.push(fname + "_on");
@@ -1564,6 +2040,7 @@
         collectionFunctions.push(fname + "_asap");
         collectionFunctions.push(fname + "_nowAndOn");
         collectionFunctions.push(fname + "_asapAndOn");
+        collectionFunctions.push(fname + "_enqueue");
         Model.prototype[fname] = function(val, forceEvent, dontFireUpdate, oldValOverride) {
           if (arguments.length != 0) {
             if (forceEvent || (this[modelStorage][fname] !== val && forceEvent !== false)) {
@@ -1588,18 +2065,21 @@
         spec[fname].asap = function(cb) {return singleton.asap(fname, cb)};
         spec[fname].nowAndOn = function(cb) {return singleton.nowAndOn(fname, cb)};
         spec[fname].asapAndOn = function(cb) {return singleton.asapAndOn(fname, cb)};
+        spec[fname].enqueue = function(cb) {return singleton.enqueue(fname, cb)};
         spec[fname + "_on"] = function(cb) {return spec.on(fname, cb)};
         spec[fname + "_once"] = function(cb) {return spec.once(fname, cb)};
         spec[fname + "_off"] = function(cb) {return spec.off(cb)};
         spec[fname + "_asap"] = function(cb) {return singleton.asap(fname, cb)};
         spec[fname + "_nowAndOn"] = function(cb) {return singleton.nowAndOn(fname, cb)};
         spec[fname + "_asapAndOn"] = function(cb) {return singleton.asapAndOn(fname, cb)};
+        spec[fname + "_enqueue"] = function(cb) {return singleton.enqueue(fname, cb)};
         Model.prototype[fname + "_on"] = function(cb) {return this.on(fname, cb)};
         Model.prototype[fname + "_once"] = function(cb) {return this.once(fname, cb)};
-        Model.prototype[fname + "_off"] = function(cb) {return this.off(fname, cb)};
+        Model.prototype[fname + "_off"] = function(cb) {return this.off(cb)};
         Model.prototype[fname + "_asap"] = function(cb) {return this.asap(fname, cb)};
         Model.prototype[fname + "_nowAndOn"] = function(cb) {return this.nowAndOn(fname, cb)};
         Model.prototype[fname + "_asapAndOn"] = function(cb) {return this.asapAndOn(fname, cb)};
+        Model.prototype[fname + "_enqueue"] = function(cb) {return this.enqueue(fname, cb)};
         spec[fname].jiant_accessor = 1;
         spec[fname].transient_fn = trans;
         //if (! objMode) {
@@ -1607,7 +2087,7 @@
         //}
         //assignOnOffHandlers(); // spec[fname], specBus, fname
       } else if (isEventHandlerName(fname)) {
-      } else if (fname != modelStorage && fname != objectBus && $.isFunction(funcSpec)) {
+      } else if (fname != modelStorage && fname != objectBus && isFunction(funcSpec) && (objMode || !repoMode)) {
         collectionFunctions.push(fname);
         spec[fname] = proxy(fname);
         Model.prototype[fname] = funcSpec;
@@ -1619,22 +2099,33 @@
     }
   }
 
+  function lowerFirst(s) {
+    return s.substring(0, 1).toLowerCase() + s.substring(1);
+  }
+
   function isEventHandlerName(fname) {
     function endsWith(fname, suffix) {
       return fname.length > suffix.length && fname.indexOf(suffix) === fname.length - suffix.length;
     }
     return endsWith(fname, "_on") || endsWith(fname, "_once") || endsWith(fname, "_off")
-        || endsWith(fname, "_asap") || endsWith(fname, "_nowAndOn") || endsWith(fname, "_asapAndOn");
+      || endsWith(fname, "_asap") || endsWith(fname, "_nowAndOn") || endsWith(fname, "_asapAndOn");
   }
 
   function attachCollectionFunctions(arr, collectionFunctions) {
-    $.each(collectionFunctions, function(idx, fn) {
+    each(collectionFunctions, function(idx, fn) {
       arr[fn] = function() {
         var ret = [],
           args = arguments;
-        $.each(this, function(idx, obj) {
+        each(this, function(idx, obj) {
           ret.push(obj[fn].apply(obj, args));
         });
+        if (isEventHandlerName(fn)) {
+          ret.off = function() {
+            each(ret, function(i, item) {
+              item.off();
+            });
+          }
+        }
         return ret;
       }
     });
@@ -1651,11 +2142,11 @@
   }
 
   function isModelAccessor(fn) {
-    return fn && fn.jiant_accessor && $.isFunction(fn);
+    return fn && fn.jiant_accessor && isFunction(fn);
   }
 
   function isModelSupplier(fn) {
-    return fn && fn.jiant_supplier && $.isFunction(fn);
+    return fn && fn.jiant_supplier && isFunction(fn);
   }
 
   function isModel(obj) {
@@ -1673,9 +2164,9 @@
   }
 
   function _bindModels(appRoot, models, appId) {
-    $.each(models, function(name, spec) {
+    each(models, function(name, spec) {
       bindModel(name, spec, appId);
-      $.each(listeners, function(i, l) {l.boundModel && l.boundModel(appRoot, models, name, models[name])});
+      each(listeners, function(i, l) {l.boundModel && l.boundModel(appRoot, models, name, models[name])});
     });
   }
 
@@ -1689,7 +2180,7 @@
     if (spec._jAppId) {
       var superImpl = $.extend(true, {}, spec),
         newImpl = implFn($, boundApps[spec._jAppId], superImpl);
-      $.each(newImpl, function(fname, fbody) {
+      each(newImpl, function(fname, fbody) {
         spec[fname] = fbody;
       });
     } else {
@@ -1699,14 +2190,14 @@
   }
 
   function _bindLogic(appRoot, logics, appId) {
-    $.each(logics, function(name, spec) {
-      if ($.isFunction(spec)) {
+    each(logics, function(name, spec) {
+      if (isFunction(spec)) {
         if (isEmptyFunction(spec)) {
           jiant.logError("don't declare empty logic functions, use objects for namespace grouping");
         }
       } else {
-        $.each(spec, function(fname, fnbody) {
-          if ($.isFunction(fnbody)) {
+        each(spec, function(fname, fnbody) {
+          if (isFunction(fnbody)) {
             var params = getParamNames(fnbody);
             if (isEmptyFunction(fnbody)) {
               spec[fname] = function() {
@@ -1720,8 +2211,8 @@
         });
         spec.implement = function(obj) {
           spec._jAppId = appId;
-          $.each(spec, function(fname, fnbody) {
-            if ($.isFunction(fnbody) && !(fname in {"implement": 1, "_jAppId": 1, "_jOverrides": 1})) {
+          each(spec, function(fname, fnbody) {
+            if (isFunction(fnbody) && !(fname in {"implement": 1, "_jAppId": 1, "_jOverrides": 1})) {
               if (! fname in obj) {
                 jiant.logError("Logic function " + fname + " is not implemented by declared implementation");
               } else {
@@ -1729,10 +2220,10 @@
               }
             }
           });
-          spec._jOverrides && spec._jOverrides.length && $.each(spec._jOverrides, function(i, implFn) {
+          spec._jOverrides && spec._jOverrides.length && each(spec._jOverrides, function(i, implFn) {
             var superImpl = $.extend(true, {}, spec),
               newImpl = implFn($, boundApps[spec._jAppId], superImpl);
-            $.each(newImpl, function(fname, fbody) {
+            each(newImpl, function(fname, fbody) {
               spec[fname] = fbody;
             });
           });
@@ -1745,28 +2236,28 @@
           loadIntl(spec, appRoot);
         }
       }
-      $.each(listeners, function(i, l) {l.boundLogic && l.boundLogic(appRoot, logics, name, spec)});
+      each(listeners, function(i, l) {l.boundLogic && l.boundLogic(appRoot, logics, name, spec)});
     });
   }
 
   function logUnboundCount(appId, name) {
     var len = 0;
-    awaitingDepends[appId] && $.each(awaitingDepends[appId], function() {len++});
-    $.each(listeners, function(i, l) {l.logicImplemented && l.logicImplemented(appId, name, len)});
+    awaitingDepends[appId] && each(awaitingDepends[appId], function() {len++});
+    each(listeners, function(i, l) {l.logicImplemented && l.logicImplemented(appId, name, len)});
   }
 
   function loadLibs(arr, cb) {
     var pseudoDeps = [];
-    if (!$.isArray(arr)) {
+    if (!isArray(arr)) {
       arr = [arr];
     }
-    $.each(arr, function(idx, url) {
+    each(arr, function(idx, url) {
       var pseudoName = "ext" + new Date().getTime() + Math.random();
       pseudoDeps.push(pseudoName);
       declare(pseudoName, url);
     });
     var pseudoAppName = "app" + new Date().getTime() + Math.random();
-    onUiBound(pseudoAppName, pseudoDeps, function($, app) {
+    onApp(pseudoAppName, pseudoDeps, function($, app) {
       cb($);
       forget(pseudoAppName);
     });
@@ -1775,15 +2266,15 @@
 
   function declare(name, objOrUrlorFn) {
     var lib = typeof objOrUrlorFn === "string",
-        startedAt = new Date().getTime();
+      startedAt = new Date().getTime();
     function handle() {
       var ms = new Date().getTime() - startedAt;
       lib && jiant.infop("Loaded external library !! in !! ms", objOrUrlorFn, ms);
       externalDeclarations[name] = lib ? {} : objOrUrlorFn;
-      $.each(awaitingDepends, function(appId, depList) {
+      each(awaitingDepends, function(appId, depList) {
         copyLogic(appId, name);
       });
-      $.each(awaitingDepends, function(appId, depList) {
+      each(awaitingDepends, function(appId, depList) {
         checkForExternalAwaiters(appId, name);
       });
     }
@@ -1799,11 +2290,11 @@
 
   function copyLogic(appId, name) {
     var obj = externalDeclarations[name],
-        app = boundApps[appId];
+      app = boundApps[appId];
     if (obj && awaitingDepends[appId] && awaitingDepends[appId][name] && app) {
       app.logic || (app.logic = {});
       app.logic[name] || (app.logic[name] = {});
-      $.each($.isFunction(obj) ? obj($, app) : obj, function(fname, fspec) {
+      each(isFunction(obj) ? obj($, app) : obj, function(fname, fspec) {
         app.logic[name][fname] = fspec;
       });
     }
@@ -1823,7 +2314,7 @@
     }
     var awaiters = awaitingDepends[appId][name];
     delete awaitingDepends[appId][name];
-    awaiters && $.each(awaiters, function(idx, cb) {
+    awaiters && each(awaiters, function(idx, cb) {
       eventBus.trigger(dependencyResolvedEventName(appId, name));
 //            handleBound(appId, cb);
     });
@@ -1833,20 +2324,20 @@
 
   function loadCss(arr, cb) {
     var all_loaded = $.Deferred(),
-        loadedCss = [],
-        link,
-        style,
-        interval,
-        timeout = 60000, // 1 minute seems like a good timeout
-        counter = 0, // Used to compare try time against timeout
-        step = 30, // Amount of wait time on each load check
-        docStyles = document.styleSheets, // local reference
-        ssCount = docStyles.length; // Initial stylesheet count
+      loadedCss = [],
+      link,
+      style,
+      interval,
+      timeout = 60000, // 1 minute seems like a good timeout
+      counter = 0, // Used to compare try time against timeout
+      step = 30, // Amount of wait time on each load check
+      docStyles = document.styleSheets, // local reference
+      ssCount = docStyles.length; // Initial stylesheet count
 
-    if (!$.isArray(arr)) {
+    if (!isArray(arr)) {
       arr = [arr];
     }
-    $.each(arr, function (idx, url) {
+    each(arr, function (idx, url) {
       info("Start loading CSS: " + url);
       loadedCss.push(handleCss(url));
     });
@@ -1897,8 +2388,8 @@
               throw (url + ' not loaded yet');
             } else {
               var loaded = false,
-                  href,
-                  n;
+                href,
+                n;
               // If there are multiple files being loaded at once, we need to make sure that
               // the new file is this file
               for (n = docStyles.length - 1; n >= 0; n--) {
@@ -1935,12 +2426,12 @@
 // ------------ semaphores staff ----------------
 
   function _bindSemaphores(appRoot, semaphores, appId) {
-    $.each(semaphores, function(name, spec) {
+    each(semaphores, function(name, spec) {
       semaphores[name].release = function() {
-        if (semaphores[name].released) {
-          logError("re-releasing semaphore already released, ignoring: " + appId + ".semaphores." + name);
-          return;
-        }
+        // if (semaphores[name].released) {
+        //   logError("re-releasing semaphore already released, ignoring: " + appId + ".semaphores." + name);
+        //   return;
+        // }
         semaphores[name].released = true;
         semaphores[name].releasedArgs = arguments;
         eventBus.trigger(appId + "." + name + ".semaphore", arguments);
@@ -1950,7 +2441,7 @@
           cb && cb.apply(cb, semaphores[name].releasedArgs);
         } else {
           eventBus.on(appId + "." + name + ".semaphore", function() {
-            var args = $.makeArray(arguments);
+            var args = copyArr(arguments);
             args.splice(0, 1);
             cb && cb.apply(cb, args);
           });
@@ -1962,7 +2453,7 @@
 // ------------ events staff ----------------
 
   function _bindEvents(appRoot, events, appId) {
-    $.each(events, function(name, spec) {
+    each(events, function(name, spec) {
       events[name].listenersCount = 0;
       events[name].fire = function() {
         perAppBus[appId].trigger(name + ".event", arguments);
@@ -1970,7 +2461,7 @@
       events[name].on = function (cb) {
         events[name].listenersCount++;
         var handler = function () {
-          var args = $.makeArray(arguments);
+          var args = copyArr(arguments);
           args.splice(0, 1);
           cb && cb.apply(cb, args);
         };
@@ -1986,13 +2477,13 @@
       events[name].off = function (handler) {
         if (jiant.DEV_MODE && (arguments.length == 0 || !handler)) {
           jiant.logInfo("Event.off called without handler, unsubscribing all event handlers, check code if it is unintentionally",
-              jiant.getStackTrace());
+            jiant.getStackTrace());
         }
         events[name].listenersCount--;
         return perAppBus[appId].off(name + ".event", handler);
       };
 
-      $.each(listeners, function(i, l) {l.boundEvent && l.boundEvent(appRoot, events, name, events[name])});
+      each(listeners, function(i, l) {l.boundEvent && l.boundEvent(appRoot, events, name, events[name])});
     });
   }
 
@@ -2013,19 +2504,19 @@
     if (! states[""]) {
       states[""] = {};
     }
-    $.each(states, function(name, stateSpec) {
+    each(states, function(name, stateSpec) {
       var params = stateSpec.go ? getParamNames(stateSpec.go) : [];
       stateSpec.go = go(name, stateSpec.root, stateSpec, stateExternalBase, appId, true, params);
       stateSpec.replace = go(name, stateSpec.root, stateSpec, stateExternalBase, appId, false, params);
       stateSpec.start = function(cb) {
         var trace;
-        $.each(listeners, function(i, l) {l.stateStartRegisterHandler && l.stateStartRegisterHandler(appRoot, name, stateSpec)});
-        statesUsed[appId + name] && $.each(listeners, function(i, l) {l.stateError && l.stateError(appRoot, name, stateSpec, "State start handler registered after state triggered")});
+        each(listeners, function(i, l) {l.stateStartRegisterHandler && l.stateStartRegisterHandler(appRoot, name, stateSpec)});
+        statesUsed[appId + name] && each(listeners, function(i, l) {l.stateError && l.stateError(appRoot, name, stateSpec, "State start handler registered after state triggered")});
         trace = getStackTrace();
         eventBus.on(appId + "state_" + name + "_start", function() {
-          var args = $.makeArray(arguments);
+          var args = copyArr(arguments);
           args.splice(0, 1);
-          $.each(listeners, function(i, l) {l.stateStartCallHandler && l.stateStartCallHandler(appRoot, name, stateSpec, trace, args)});
+          each(listeners, function(i, l) {l.stateStartCallHandler && l.stateStartCallHandler(appRoot, name, stateSpec, trace, args)});
           cb && cb.apply(cb, args);
         });
         var current = parseState(appId);
@@ -2037,17 +2528,17 @@
       };
       stateSpec.end = function(cb) {
         var trace;
-        $.each(listeners, function(i, l) {l.stateEndRegisterHandler && l.stateEndRegisterHandler(appRoot, name, stateSpec)});
-        statesUsed[appId + name] && $.each(listeners, function(i, l) {l.stateError && l.stateError(appRoot, name, stateSpec, "State end handler registered after state triggered")});
+        each(listeners, function(i, l) {l.stateEndRegisterHandler && l.stateEndRegisterHandler(appRoot, name, stateSpec)});
+        statesUsed[appId + name] && each(listeners, function(i, l) {l.stateError && l.stateError(appRoot, name, stateSpec, "State end handler registered after state triggered")});
         trace = getStackTrace();
         eventBus.on(appId + "state_" + name + "_end", function() {
-          $.each(listeners, function(i, l) {l.stateEndCallHandler && l.stateEndCallHandler(appRoot, name, stateSpec, trace)});
-          var args = $.makeArray(arguments);
+          each(listeners, function(i, l) {l.stateEndCallHandler && l.stateEndCallHandler(appRoot, name, stateSpec, trace)});
+          var args = copyArr(arguments);
           args.splice(0, 1);
           cb && cb.apply(cb, args);
         });
       };
-      $.each(listeners, function(i, l) {l.boundState && l.boundState(appRoot, states, name, stateSpec)});
+      each(listeners, function(i, l) {l.boundState && l.boundState(appRoot, states, name, stateSpec)});
     });
     $(window).hashchange(makeHashListener(appRoot, appId));
     lastStates[appId] = parseState(appId).now[0];
@@ -2068,19 +2559,19 @@
         return;
       }
       params.splice(0, 1);
-      $.each(params, function (idx, p) {
+      each(params, function (idx, p) {
         if (p == "undefined") {
           params[idx] = undefined;
         }
       });
       if (lastStates[appId] != undefined && lastStates[appId] != stateId) {
-        $.each(listeners, function(i, l) {l.stateEndTrigger && l.stateEndTrigger(appRoot, lastStates[appId])});
+        each(listeners, function(i, l) {l.stateEndTrigger && l.stateEndTrigger(appRoot, lastStates[appId])});
         eventBus.trigger(appId + "state_" + lastStates[appId] + "_end");
       }
       lastStates[appId] = stateId;
       lastEncodedStates[appId] = getAppState(appId);
       stateId = (stateId ? stateId : "");
-      $.each(listeners, function(i, l) {l.stateStartTrigger && l.stateStartTrigger(appRoot, stateId, params)});
+      each(listeners, function(i, l) {l.stateStartTrigger && l.stateStartTrigger(appRoot, stateId, params)});
       !statesUsed[appId + stateId] && (statesUsed[appId + stateId] = 1);
       //            jiant.logInfo(lastEncodedStates[appId] + " params are ", params);
       eventBus.trigger(appId + "state_" + stateId + "_start", params);
@@ -2093,7 +2584,7 @@
       var parsed = parseState(appId),
         prevState = parsed.now;
       parsed.now = [stateId];
-      $.each(arguments, function(idx, arg) {
+      each(arguments, function(idx, arg) {
         if (arg !== undefined) {
           parsed.now.push(pack(arg));
         } else if ((prevState[0] == stateId || isSameStatesGroup(appId, prevState[0], stateId)) && prevState[idx + 1] != undefined) {
@@ -2131,11 +2622,11 @@
       }
       if (root) {
         parsed.root = [];
-        $.each(parsed.now, function(idx, param) {
+        each(parsed.now, function(idx, param) {
           parsed.root.push(param);
         });
       } else {
-        $.each(parsed.root, function(idx, param) {
+        each(parsed.root, function(idx, param) {
           parsed.root[idx] = pack(param);
         });
       }
@@ -2153,7 +2644,7 @@
     function _go(appId) {
       var parsed = parseState(appId);
       parsed.now = [];
-      $.each(parsed.root, function(idx, param) {
+      each(parsed.root, function(idx, param) {
         parsed.now.push(pack(param));
         parsed.root[idx] = pack(param);
       });
@@ -2163,7 +2654,7 @@
       var appId = extractApplicationId(appOrId);
       _go(appId);
     } else {
-      $.each(getStates(), function(appId, state) {
+      each(getStates(), function(appId, state) {
         _go(appId);
       });
     }
@@ -2173,7 +2664,7 @@
     var states = getStates(),
       result = "";
     var s = parsed.now + "|" + parsed.root;
-    $.each(states, function(stateAppId, state) {
+    each(states, function(stateAppId, state) {
       if (appId == stateAppId) {
         result += (stateAppId + "=" + s + "=");
       } else {
@@ -2197,7 +2688,7 @@
       data = state.split("="),
       retVal = {};
 //          jiant.logInfo("parsing state: " + state);
-    $.each(data, function(idx, elem) {
+    each(data, function(idx, elem) {
       (idx % 2 == 0) && elem && data[idx + 1] != undefined && (retVal[elem] = data[idx + 1]);
 //            (idx % 2 == 0) && elem && data[idx + 1] != undefined && jiant.logInfo("state parsed: " + elem + " === " + data[idx+1]);
     });
@@ -2210,7 +2701,7 @@
       return s === undefined ? "" : s;
     } else {
       var retVal = "";
-      $.each(getStates(), function(key, val) {
+      each(getStates(), function(key, val) {
         retVal = val;
         return false;
       });
@@ -2222,9 +2713,9 @@
     var state = getAppState(appId),
       arr = state.split("|"),
       parsed = {now: [], root: []};
-    $.each(arr, function(idx, item) {
+    each(arr, function(idx, item) {
       var args = item.split(",");
-      $.each(args, function(idxInner, arg) {
+      each(args, function(idxInner, arg) {
         parsed[idx == 0 ? "now" : "root"].push(unpack(arg));
       });
     });
@@ -2236,7 +2727,7 @@
   function pack(s) {
     if ($.isPlainObject(s)) {
       var retVal = "{";
-      $.each(s, function(key, val) {
+      each(s, function(key, val) {
         retVal += pack(key);
         retVal += ":";
         retVal += pack(val);
@@ -2258,16 +2749,18 @@
     if (s && s[0] == "{") {
       var retVal = {};
       var arr = s.substring(1, s.length).split("}");
-      $.each(arr, function(idx, item) {
+      each(arr, function(idx, item) {
         var sub = item.split(":");
         (sub.length == 2) && (retVal[unpack(sub[0])] = unpack(sub[1]));
       });
       return retVal;
     } else {
-      return s === "undefined" ? undefined
-        : (parseInt(s) + "" == s) ? parseInt(s)
-        : s;
+      return s === "undefined" ? undefined : isNumberString(s) ? parseInt(s) : s;
     }
+  }
+
+  function isNumberString(s) {
+    return (parseInt(s) + "") === s;
   }
 
   function getCurrentState(appId) {
@@ -2295,28 +2788,31 @@
   }
 
   function _bindAjax(appRoot, root, ajaxPrefix, ajaxSuffix, crossDomain) {
-    $.each(root, function(uri, funcSpec) {
+    each(root, function(uri, funcSpec) {
       var params = getParamNames(funcSpec);
       params && params.length > 0 ? params.splice(params.length - 1, 1) : params = [];
-      root[uri] = makeAjaxPerformer(appRoot, ajaxPrefix, ajaxSuffix, uri, params, $.isFunction(root[uri]) ? root[uri]() : undefined, crossDomain);
+      root[uri] = makeAjaxPerformer(appRoot, ajaxPrefix, ajaxSuffix, uri, params, isFunction(root[uri]) ? root[uri]() : undefined, crossDomain);
       root[uri]._jiantSpec = funcSpec;
       root[uri]._jiantSpecName = uri;
-      $.each(listeners, function(i, l) {l.boundAjax && l.boundAjax(appRoot, root, uri, root[uri])});
+      each(listeners, function(i, l) {l.boundAjax && l.boundAjax(appRoot, root, uri, root[uri])});
     });
   }
 
   function parseForAjaxCall(root, path, actual, traverse) {
-    if ($.isArray(actual) || (actual && actual.jCollection)) {
+    if (path === null) {
+      return;
+    }
+    if (isArray(actual) || (actual && actual.jCollection)) {
       var compound = false;
-      $.each(actual, function(i, obj) {
+      each(actual, function(i, obj) {
         compound = compound || $.isPlainObject(obj) || (obj && obj.jModelName);
         return !compound;
       });
-      $.each(actual, function(i, obj) {
+      each(actual, function(i, obj) {
         parseForAjaxCall(root, path + (compound ? ("[" + i + "]") : ""), obj, true);
       });
     } else if ($.isPlainObject(actual) || (actual && actual.jModelName)) {
-      $.each(actual, function(key, value) {
+      each(actual, function(key, value) {
         if (key === jiant.flags.ajaxSubmitAsMap) {
           return;
         }
@@ -2343,40 +2839,96 @@
     }
   }
 
-  function makeAjaxPerformer(appRoot, ajaxPrefix, ajaxSuffix, uri, params, hardUrl, crossDomain) {
+  function subslash(s) {
+    s = s.substring(1);
+    return s.endsWith("/") ? s.substring(0, s.length - 1) : s;
+  }
+
+  function replaceSubsInUrl(url, subs) {
+    return url.replace(restRegexp, function(key) {
+      var lenBefore = key.length;
+      key = subslash(key);
+      return (key in subs ? subs[key] : (":" + key)) + ((lenBefore - key.length >= 2) ? "/" : "");
+    });
+  }
+
+  function extractSubsInUrl(url) {
+    var arr = url.match(restRegexp) || [];
+    each(arr, function(i, obj) {
+      arr[i] = subslash(obj);
+    });
+    if (isNumberString(arr[0])) {
+      arr = arr.slice(1, arr.length);
+    }
+    return arr;
+  }
+
+  function makeAjaxPerformer(appRoot, ajaxPrefix, ajaxSuffix, uri, params, specRetVal, crossDomain) {
+    var pfx = (ajaxPrefix || ajaxPrefix === "") ? ajaxPrefix : jiant.AJAX_PREFIX,
+      sfx = (ajaxSuffix || ajaxSuffix === "") ? ajaxSuffix : jiant.AJAX_SUFFIX,
+      callSpec = (specRetVal && (typeof specRetVal !== "string")) ? specRetVal : {},
+      subsInUrl,
+      headers = {};
+    callSpec.url = callSpec.url || (typeof specRetVal === "string" ? specRetVal : (uri + sfx));
+    if (pfx.endsWith("/") && callSpec.url.startsWith("/")) {
+      callSpec.url = callSpec.url.substring(1);
+    }
+    if (!callSpec.url.startsWith("http://") && !callSpec.url.startsWith("https://")) {
+      callSpec.url = pfx + ((callSpec.url.startsWith("/") || pfx.endsWith("/") || pfx.length === 0
+        || (!callSpec.url.startsWith("/") && !pfx.endsWith("/"))) ? "" : "/") + callSpec.url;
+    }
+    subsInUrl = extractSubsInUrl(callSpec.url);
+    if (! ("paramMapping" in callSpec)) {
+      callSpec.paramMapping = {};
+    }
+    if (! ("headers" in callSpec)) {
+      callSpec.headers = {};
+    }
     return function() {
       var callData = {},
         callback,
         errHandler,
-        outerArgs = arguments;
-      if ($.isFunction(outerArgs[outerArgs.length - 2])) {
+        outerArgs = arguments,
+        url = callSpec.url,
+        time = new Date().getTime();
+      if (isFunction(outerArgs[outerArgs.length - 2])) {
         callback = outerArgs[outerArgs.length - 2];
         errHandler = outerArgs[outerArgs.length - 1];
-      } else if ($.isFunction(outerArgs[outerArgs.length - 1])) {
+      } else if (isFunction(outerArgs[outerArgs.length - 1])) {
         callback = outerArgs[outerArgs.length - 1];
       }
-      $.each(params, function(idx, param) {
-        if (idx < outerArgs.length && !$.isFunction(outerArgs[idx]) && outerArgs[idx] != undefined && outerArgs[idx] != null) {
-          var actual = outerArgs[idx];
-          parseForAjaxCall(callData, param, actual);
+      each(params, function(idx, param) {
+        if (idx < outerArgs.length && !isFunction(outerArgs[idx]) && outerArgs[idx] !== undefined && outerArgs[idx] !== null) {
+          var actual = outerArgs[idx],
+            paramName = callSpec.paramMapping[param] || param;
+          if (!(param in callSpec.headers)) {
+            parseForAjaxCall(callData, paramName, actual);
+          } else {
+            headers[callSpec.headers[param]] = actual;
+          }
         }
       });
-      if (! callData["antiCache3721"]) {
+      if ((!callSpec.method || callSpec.method.toLowerCase() === "get") && !callData["antiCache3721"]) {
         callData["antiCache3721"] = new Date().getTime();
       }
-      var pfx = (ajaxPrefix || ajaxPrefix == "") ? ajaxPrefix : jiant.AJAX_PREFIX,
-        sfx = (ajaxSuffix || ajaxSuffix == "") ? ajaxSuffix : jiant.AJAX_SUFFIX,
-        url = hardUrl ? hardUrl : (pfx + uri + sfx),
-        time = new Date().getTime();
-      $.each(listeners, function(i, l) {l.ajaxCallStarted && l.ajaxCallStarted(appRoot, uri, url, callData)});
-      var settings = {data: callData, traditional: true, success: function(data) {
-        $.each(listeners, function(i, l) {l.ajaxCallCompleted && l.ajaxCallCompleted(appRoot, uri, url, callData, new Date().getTime() - time)});
+      each(listeners, function(i, l) {l.ajaxCallStarted && l.ajaxCallStarted(appRoot, uri, url, callData)});
+      var subs = {};
+      $.each(subsInUrl, function(i, sub) {
+        var subMapped = callSpec.paramMapping[sub] || sub;
+        if (subMapped in callData) {
+          subs[subMapped] = callData[subMapped];
+          delete callData[subMapped];
+        }
+      });
+      url = replaceSubsInUrl(url, subs);
+      var settings = {data: callData, traditional: true, method: callSpec.method, headers: headers, success: function(data) {
+        each(listeners, function(i, l) {l.ajaxCallCompleted && l.ajaxCallCompleted(appRoot, uri, url, callData, new Date().getTime() - time)});
         if (callback) {
           try {
             data = $.parseJSON(data);
           } catch (ex) {
           }
-          $.each(listeners, function(i, l) {l.ajaxCallResults && l.ajaxCallResults(appRoot, uri, url, callData, data)});
+          each(listeners, function(i, l) {l.ajaxCallResults && l.ajaxCallResults(appRoot, uri, url, callData, data)});
           callback(data);
         }
       }, error: function (jqXHR, textStatus, errorText) {
@@ -2385,10 +2937,12 @@
         }
         if (errHandler) {
           errHandler(jqXHR.responseText);
+        } else if (appRoot.handleErrorFn) {
+          appRoot.handleErrorFn(jqXHR.responseText);
         } else {
           jiant.handleErrorFn(jqXHR.responseText);
         }
-        $.each(listeners, function(i, l) {l.ajaxCallError && l.ajaxCallError(appRoot, uri, url, callData, new Date().getTime() - time, jqXHR.responseText, jqXHR)});
+        each(listeners, function(i, l) {l.ajaxCallError && l.ajaxCallError(appRoot, uri, url, callData, new Date().getTime() - time, jqXHR.responseText, jqXHR)});
       }};
       if (crossDomain) {
         settings.contentType = "application/json";
@@ -2407,9 +2961,9 @@
 // ------------ internationalization, texts ------------
 
   function translate(appRoot, val) {
-    if ($.isArray(val)) {
+    if (isArray(val)) {
       var arr = [];
-      $.each(val, function(i, key) {
+      each(val, function(i, key) {
         arr.push(appRoot.logic.intl.t(key));
       });
       return arr.join(", ");
@@ -2425,9 +2979,10 @@
       if (isNaN(num) || val != num + "") {
         prev.call(uiElem, val);
       } else {
-        prev.call(uiElem, formatMoney(num));
+        prev.call(uiElem, formatMoney(num, appRoot.formatGroupsDelim || undefined ));
       }
     };
+    uiElem.addClass("nowrap");
   }
 
   function intlProxy(appRoot, elem, fname) {
@@ -2437,14 +2992,15 @@
     }
     var prev = elem[fname];
     elem[fname] = function(val) {
-      if (val == undefined) {
-        return prev.call(elem);
+      if (val === undefined || val === null) {
+        return prev.call(elem, val);
       } else {
         if (loadedLogics[appRoot.id] && loadedLogics[appRoot.id].intl) {
           prev.call(elem, translate(appRoot, val));
         } else {
           prev.call(elem, val);
-          onUiBound(appRoot, ["intl"], function() {prev.call(elem, translate(appRoot, val))});
+          var stack = getStackTrace();
+          onApp(appRoot, ["intl"], function() {prev.call(elem, translate(appRoot, val))});
         }
       }
     }
@@ -2465,42 +3021,84 @@
     }
   }
 
+  function isI18n() {
+    return (typeof i18n !== "undefined");
+  }
+
+  function i18ntl() {
+    return (typeof i18n !== "undefined") ? i18n : i18next;
+  }
+
   function loadIntl(intlRoot, appRoot) {
     infop("Loading intl for app !!", appRoot.id);
     if (! intlRoot.url) {
       //error("Intl data url not provided, internationalization will not be loaded");
       return;
     }
+    var url = intlRoot.url;
+    if (appRoot.modulesSuffix) {
+      var delim = intlRoot.url.indexOf("?") >= 0 ? "&" : "?";
+      url = url + delim + appRoot.modulesSuffix;
+    }
     intlRoot.t = function(val) {};
     intlRoot.t.spec = true;
     intlRoot.t.empty = true;
-    $.getJSON(intlRoot.url, function(data) {
-      var implSpec = {};
+    $.getJSON(url, function(data) {
+      var implSpec = {}, option = intlRoot["i18nOptions"] || {debug: jiant.DEV_MODE};
       if (intlRoot.i18n) {
-        var option = {
-          customLoad: function(lng, ns, options, loadComplete) {
+        if (isI18n()) {
+          option.customLoad = function(lng, ns, options, loadComplete) {
             loadComplete(null, data);
+          };
+          if (intlRoot.javaSubst) {
+            option.interpolationPrefix = '{';
+            option.interpolationSuffix = '}';
           }
-        };
-        if (intlRoot.javaSubst) {
-          option.interpolationPrefix = '{';
-          option.interpolationSuffix = '}';
+          i18n.init(option);
+          completeIntl();
+        } else {
+          if (intlRoot.javaSubst) {
+            option.interpolation = {
+              prefix: '{',
+              suffix: '}'
+            };
+          } else {
+            option.interpolation = option.interpolation || {
+                prefix: intlRoot.prefix || '__',
+                suffix: intlRoot.suffix || '__'
+              };
+          }
+          i18next.use({
+            type: 'backend',
+            init: function(services, options) {},
+            read: function(language, namespace, callback) {
+              callback(null, data);
+            }
+          }).init(option, completeIntl);
         }
-        i18n.init(option);
+      } else {
+        completeIntl();
       }
-      $.each(intlRoot, function(fname, fspec) {
-        if (fspec.spec) {
-          implSpec[fname] = intlRoot.i18n ? implementIntlFunctionWithI18N(fname, fspec, data, intlRoot.javaSubst) : implementIntlFunction(fname, fspec, data);
-        }
-      });
-      intlRoot.implement(implSpec);
-      if (intlRoot.scanDoc) {
-        $("*[data-nlabel]").each(function(i, elem) {
-          elem = $(elem);
-          var key = elem.attr("data-nlabel"),
-              translation = intlRoot.t(key);
-          elem.html(translation);
+      function completeIntl() {
+        each(intlRoot, function(fname, fspec) {
+          if (fspec.spec) {
+            implSpec[fname] = intlRoot.i18n ? implementIntlFunctionWithI18N(fname, fspec, data, intlRoot.javaSubst) : implementIntlFunction(fname, fspec, data);
+          }
         });
+        intlRoot.implement(implSpec);
+        intlRoot.debugIntl = function(prefix) {
+          each(data, function(key, val) {
+            key.startsWith(prefix) && infop("!! = !!", key, val);
+          });
+        };
+        if (intlRoot.scanDoc) {
+          $("*[data-nlabel]").each(function(i, elem) {
+            elem = $(elem);
+            var key = elem.attr("data-nlabel"),
+              translation = intlRoot.t(key);
+            elem.html(translation);
+          });
+        }
       }
     });
   }
@@ -2514,7 +3112,7 @@
   }
 
   function ensureIntlKey(data, key) {
-    data[key] || jiant.error("Not found translation for key: ", key);
+    key && (data[key] || jiant.error("Not found translation for key: ", key));
   }
 
   function implementIntlFunctionWithI18N(fname, fspec, data, javaSubst) {
@@ -2523,27 +3121,27 @@
         var args = {};
         if (arguments) {
           if (javaSubst) {
-            $.each(arguments, function(i, a) {i > 0 && (args["" + (i - 1)] = a)});
+            each(arguments, function(i, a) {i > 0 && (args["" + (i - 1)] = a)});
           } else {
             args = arguments[1];
           }
         }
         ensureIntlKey(data, key);
-        return i18n.t(key, args);
+        return i18ntl().t(key, args);
       }
     } else if (fspec.empty) {
       return function() {
         var args = {};
         if (arguments) {
           if (javaSubst) {
-            $.each(arguments, function(i, a) {args["" + i] = a});
+            each(arguments, function(i, a) {args["" + i] = a});
           } else {
             var paramNames = getParamNames(fspec);
-            $.each(arguments, function(i, a) {i > 0 && i < paramNames.length && (args[paramNames[i]] = a)});
+            each(arguments, function(i, a) {i > 0 && i < paramNames.length && (args[paramNames[i]] = a)});
           }
         }
         ensureIntlKey(data, fname);
-        return i18n.t(fname, args);
+        return i18ntl().t(fname, args);
       }
     } else {
       return fspec;
@@ -2553,7 +3151,7 @@
   function implementIntlFunction(fname, fspec, data) {
     var impl = function(key) {return prepareTranslation(key, data[key])};
     if (fname == "t") {
-      return impl
+      return impl;
     } else if (fspec.empty) {
       return function() {
         return impl(fname);
@@ -2573,46 +3171,42 @@
   // loadModule before .app puts module into list of app modules, cb ignored
   // loadModule during .app executes module immediately
   // loadModule after .app executes module immediately
-  function loadModule(app, modules, cb, injectTo, replace) {
+  function loadModule(app, modules, cb, replace, injectTo) {
     var appId = extractApplicationId(app);
-    if (! $.isArray(modules)) {
+    if (! isArray(modules)) {
       modules = [modules];
     }
     if (boundApps[appId]) { // after
-      _loadModules(boundApps[appId], modules, appId, false, cb, injectTo, replace);
+      _loadModules(boundApps[appId], modules, appId, false, cb, replace, injectTo);
     } else if (bindingCurrently[appId]) { // during
-      _loadModules(bindingCurrently[appId], modules, appId, false, cb, injectTo, replace);
+      _loadModules(bindingCurrently[appId], modules, appId, false, cb, replace, injectTo);
     } else { // before
+      if (cb) {
+        logError("loadModule called before .app with callback, callback will be ignored. loadModule arguments: ", arguments);
+      }
       preApp(appId, function($, app) {
-        $.each(modules, function(i, m) {
+        each(modules, function(i, m) {
           app.modules.push(m);
         });
       });
     }
   }
 
-  function _loadModules(appRoot, root, appId, initial, cb, injectTo, replace) {
-    var modules2load = [],
-        replaceProvided = arguments.length >= 7;
+  function _loadModules(appRoot, root, appId, initial, cb, replace, injectTo) {
+    var modules2load = [];
     cb = cb || function() {};
     if ($.isPlainObject(root)) {
       modules2load = parseObjectModules(root, appId);
-    } else if ($.isArray(root)) {
+    } else if (isArray(root)) {
       modules2load = parseArrayModules(root, appId);
     } else {
       logError("Unrecognized modules type", root);
     }
     if (modules2load.length) {
-      if (injectTo) {
-        $.each(modules2load, function(i, m) {
-          m.injectTo = injectTo;
-        });
-      }
-      if (replaceProvided) {
-        $.each(modules2load, function(i, m) {
-          m.replace = replace;
-        });
-      }
+      each(modules2load, function(i, m) {
+        m.replace = replace;
+        m.injectTo = injectTo;
+      });
       loadModules(appRoot, appId, modules2load, initial, cb);
     } else {
       cb();
@@ -2620,7 +3214,7 @@
   }
 
   function executeExternal(appRoot, cb, arr, idx, module) {
-    module.css && $.each(module.css, function(i, url) {
+    module.css && each(module.css, function(i, url) {
       if (addedLibs[url]) {
         return;
       }
@@ -2630,7 +3224,7 @@
         $("<style>").html(css).appendTo("head");
       }
     });
-    module.html && $.each(module.html, function(i, url) {
+    module.html && each(module.html, function(i, url) {
       // if (addedLibs[url]) {
       //   return;
       // }
@@ -2645,7 +3239,7 @@
         }
       }
     });
-    module.js && $.each(module.js, function(i, url) {
+    module.js && each(module.js, function(i, url) {
       if (addedLibs[url]) {
         return;
       }
@@ -2664,11 +3258,11 @@
       return;
     }
     var moduleSpec = arr[idx],
-        mname = moduleSpec.name,
-        module = modules[mname];
-    if ($.isFunction(module)) {
+      mname = moduleSpec.name,
+      module = modules[mname];
+    if (isFunction(module)) {
       var args = [$, appRoot, jiant, moduleSpec];
-      module.parsedDeps && $.each(module.parsedDeps, function(i, name) {
+      module.parsedDeps && each(module.parsedDeps, function(i, name) {
         args.push(appRoot.modules[name]);
       });
       appRoot.modules[mname] = module.apply(this, args);
@@ -2677,9 +3271,9 @@
       executeExternal(appRoot, cb, arr, idx, module);
     } else {
       errorp("Application !!. Not loaded module !!. " +
-          "Possible error - wrong modules section, wrong path or module name in js file doesn't match declared " +
-          "in app.modules section. Load initiated by !!",
-          appRoot.id, mname, (moduleSpec.j_initiatedBy ? moduleSpec.j_initiatedBy : "appication"));
+        "Possible error - wrong modules section, wrong path or module name in js file doesn't match declared " +
+        "in app.modules section. Load initiated by !!",
+        appRoot.id, mname, (moduleSpec.j_initiatedBy ? moduleSpec.j_initiatedBy : "appication"));
       executeModule(appRoot, cb, arr, idx + 1);
     }
   }
@@ -2700,7 +3294,7 @@
     }
     for (var i in modules2load) {
       var mName = modules2load[i].name,
-          m = modules[mName];
+        m = modules[mName];
       if (!m || m.cssCount || m.jsCount || m.htmlCount) {
         return false;
       }
@@ -2711,7 +3305,7 @@
       appRoot.modules = {};
     }
     var arr = [];
-    $.each(modules2load, function(i, moduleSpec) {
+    each(modules2load, function(i, moduleSpec) {
       arr.push(moduleSpec);
     });
     arr.sort(function(a, b) {
@@ -2719,11 +3313,11 @@
     });
     executeModule(appRoot, cb, arr, 0);
     return true;
-}
+  }
 
   function addIfNeed(modules2load, depModule) {
     var found = false;
-    $.each(modules2load, function(i, moduleSpec) {
+    each(modules2load, function(i, moduleSpec) {
       if (moduleSpec.name == depModule.name) {
         found = true;
         moduleSpec.order = Math.min(moduleSpec.order, depModule.order);
@@ -2755,15 +3349,15 @@
       }
       var deps = modules[moduleName].deps,
         darr = modules[moduleName].parsedDeps = [];
-      deps && $.each(deps, function(i, dep) {
+      deps && each(deps, function(i, dep) {
         if (typeof dep === "string") {
           darr.push(loadDep("", dep, moduleSpec))
         } else {
-          $.each(dep, function(path, arr) {
-            if (! $.isArray(arr)) {
+          each(dep, function(path, arr) {
+            if (! isArray(arr)) {
               arr = [arr];
             }
-            $.each(arr, function(i, val) {
+            each(arr, function(i, val) {
               darr.push(loadDep(path, val, moduleSpec));
             });
           });
@@ -2773,6 +3367,9 @@
     function preprocessLoadedModule(moduleSpec, moduleObj) {
       handleModuleDeps(moduleSpec.name, moduleSpec);
       if ($.isPlainObject(moduleObj)) {
+        preparePath(moduleObj, "css");
+        preparePath(moduleObj, "js");
+        preparePath(moduleObj, "html");
         loadPath(moduleObj, "css");
         loadPath(moduleObj, "js");
         loadPath(moduleObj, "html");
@@ -2792,6 +3389,7 @@
         infop("           url: " + url);
         $.ajax({
           url: url,
+          method: "GET",
           timeout: appRoot.modulesTimeout || 15000,
           cache: true,
           crossDomain: true,
@@ -2819,7 +3417,7 @@
     moduleLoads.push({
       appRoot: appRoot, modules2load: modules2load, initial: initial, cb: cb, loading: loading
     });
-    $.each(modules2load, function(i, moduleSpec) {
+    each(modules2load, function(i, moduleSpec) {
       _loadModule(appRoot, appId, modules2load, initial, cb, moduleSpec, loading);
     });
     cbIf0();
@@ -2827,19 +3425,19 @@
 
   function parseArrayModules(root, appId) {
     var ret = [], j = 0;
-    $.each(root, function(i, module) {
+    each(root, function(i, module) {
       if (typeof module === "string") {
         ret.push(parseObjModule(module, {path: module}, appId, j));
       } else {
-        $.each(module, function(key, val) {
+        each(module, function(key, val) {
           if (typeof val === "string") {
             ret.push(parseObjModule(val, {path: key + "/" + val}, appId, j));
-          } else if ($.isArray(val)) {
-            $.each(val, function(i, subval) {
+          } else if (isArray(val)) {
+            each(val, function(i, subval) {
               if (typeof subval === "string") {
                 ret.push(parseObjModule(subval, {path: key + "/" + subval}, appId, j));
               } else {
-                $.each(subval, function(k, v) {
+                each(subval, function(k, v) {
                   v.path = v.path || (key + "/" + k);
                   ret.push(parseObjModule(k, v, appId, j));
                   j++;
@@ -2860,7 +3458,7 @@
 
   function parseObjectModules(root, appId) {
     var ret = [], i = 0;
-    $.each(root, function(name, module) {
+    each(root, function(name, module) {
       if (typeof module === "string") {
         ret.push(parseObjModule(name, {path: module}, appId, i));
       } else {
@@ -2880,14 +3478,19 @@
     return module;
   }
 
-  function loadPath(module, path) {
+  function preparePath(module, path) {
     if (module[path]) {
-      if (! $.isArray(module[path])) {
+      if (!isArray(module[path])) {
         module[path] = [module[path]];
       }
       module[path + "Count"] = module[path + "Count"] ? (module[path + "Count"] + module[path].length) : module[path].length;
       module[path + "Loaded"] = {};
-      $.each(module[path], function(i, url) {
+    }
+  }
+
+  function loadPath(module, path) {
+    if (module[path]) {
+      each(module[path], function(i, url) {
         if (loadedLibs[url]) {
           module[path + "Loaded"][url] = loadedLibs[url];
           module[path + "Count"]--;
@@ -2907,6 +3510,7 @@
           $.ajax({
             url: url,
             timeout: jiant.LIB_LOAD_TIMEOUT,
+            method: "GET",
             cache: true,
             crossDomain: true,
             dataType: "text"
@@ -2915,7 +3519,7 @@
             loadedLibs[url] = data;
             var waiters = loadingLibs[url];
             delete loadingLibs[url];
-            $.each(waiters, function(i, w) {
+            each(waiters, function(i, w) {
               w();
             });
           }).always(function() {
@@ -2969,8 +3573,8 @@
     return false;
   }
 
-  function _bindUi(root, devMode, appUiFactory) {
-    ! devMode && maybeSetDevModeFromQueryString();
+  function _bindUi(root, appUiFactory) {
+    maybeSetDevModeFromQueryString();
     errString = "";
     bindingsResult = true;
     var appId = (root.id ? root.id : "no_app_id");
@@ -2993,17 +3597,19 @@
     maybeShort(root, "states", "s");
     maybeShort(root, "models", "m");
     root.modules = root.modules || [];
+    preApping[appId] = root;
     if (pre[appId]) {
-      $.each(pre[appId], function(i, cb) {
+      each(pre[appId], function(i, cb) {
         cb($, root, jiant);
       });
       delete pre[appId];
     }
     if (appId !== "*" && pre["*"]) {
-      $.each(pre["*"], function(i, cb) {
+      each(pre["*"], function(i, cb) {
         cb($, root, jiant);
       });
     }
+    delete preApping[appId];
     bindingCurrently[appId] = root;
     if (root.modulesSpec) {
       root.modules = root.modulesSpec;
@@ -3023,18 +3629,16 @@
       perAppBus[appId] = $({});
       boundApps[appId] = root;
       loadedLogics[appId] || (loadedLogics[appId] = {});
-      $.each(externalDeclarations, function(name, impl) {
+      each(externalDeclarations, function(name, impl) {
         loadedLogics[appId][name] || (loadedLogics[appId][name] = externalDeclarations[name]);
         copyLogic(appId, name);
         awakeAwaitingDepends(appId, name);
       });
       delete bindingCurrently[appId];
-      var appInitEvent = appId + "onAppInit" + appId;
-      eventBus.trigger(appInitEvent);
-      $.when.apply($, onInitAppActions).done(function() {eventBus.trigger(appBoundEventName(appId))});
-      devMode && setTimeout(function() {
+      eventBus.trigger(appBoundEventName(appId));
+      jiant.DEV_MODE && setTimeout(function() {
         if (awaitingDepends[appId]) {
-          $.each(awaitingDepends[appId], function(key, arr) {
+          each(awaitingDepends[appId], function(key, arr) {
             if (arr && arr.length) {
               errorp("Some logic depends for application " + appId + " are not implemented by your code, logic name: ", key);
               logError(awaitingDepends[appId]);
@@ -3071,7 +3675,7 @@
     if (typeof devMode !== "boolean") {
       devMode = undefined;
     }
-    $.each(listeners, function(i, l) {l.bindStarted && l.bindStarted(root)});
+    each(listeners, function(i, l) {l.bindStarted && l.bindStarted(root)});
     var appUiFactory = root.uiFactory ? root.uiFactory : uiFactory;
     if (viewsUrl) {
       var injectionPoint;
@@ -3085,25 +3689,25 @@
         injectionPoint = $("body");
       }
       injectionPoint.load(viewsUrl, {}, function () {
-        _bindUi(root, devMode, appUiFactory);
+        _bindUi(root, appUiFactory);
       });
     } else {
-      _bindUi(root, devMode, appUiFactory);
+      _bindUi(root, appUiFactory);
     }
-    $.each(listeners, function(i, l) {l.bindCompleted && l.bindCompleted(root)});
+    each(listeners, function(i, l) {l.bindCompleted && l.bindCompleted(root)});
   }
 
   function extractApplicationId(appId) {
     return $.isPlainObject(appId) ? appId.id : appId
   }
 
-  // onUiBound(cb);
-  // onUiBound(depList, cb); - INVALID, treated as onUiBound(appIdArr, cb);
-  // onUiBound(appIdArr, cb);
-  // onUiBound(appIdArr, depList, cb);
-  // onUiBound(appId, cb);
-  // onUiBound(appId, depList, cb)
-  function onUiBound(appIdArr, dependenciesList, cb) {
+  // onApp(cb);
+  // onApp(depList, cb); - INVALID, treated as onApp(appIdArr, cb);
+  // onApp(appIdArr, cb);
+  // onApp(appIdArr, depList, cb);
+  // onApp(appId, cb);
+  // onApp(appId, depList, cb)
+  function onApp(appIdArr, dependenciesList, cb) {
     if (! cb && ! dependenciesList) {
       jiant.error("!!! Registering anonymous logic without application id. Not recommended since 0.20");
       cb = appIdArr;
@@ -3112,13 +3716,13 @@
       cb = dependenciesList;
       dependenciesList = [];
     }
-    if (! $.isArray(appIdArr)) {
+    if (! isArray(appIdArr)) {
       appIdArr = [appIdArr];
     }
-    if (appIdArr.length > 1 && $.isArray(dependenciesList) && dependenciesList.length > 0) {
-      $.each(dependenciesList, function(idx, arr) {
-        if (!$.isArray(arr)) {
-          jiant.error("Used multiple applications onUiBound and supplied wrong dependency list, use multi-array, " +
+    if (appIdArr.length > 1 && isArray(dependenciesList) && dependenciesList.length > 0) {
+      each(dependenciesList, function(idx, arr) {
+        if (!isArray(arr)) {
+          jiant.error("Used multiple applications onApp and supplied wrong dependency list, use multi-array, " +
             "like [[app1DepList], [app2DepList]]");
         }
       })
@@ -3127,17 +3731,17 @@
     } else if (! dependenciesList) {
       dependenciesList = [];
     }
-    $.each(listeners, function(i, l) {l.onUiBoundCalled && l.onUiBoundCalled(appIdArr, dependenciesList, cb)});
-    $.each(appIdArr, function(idx, appId) {
+    each(listeners, function(i, l) {l.onUiBoundCalled && l.onUiBoundCalled(appIdArr, dependenciesList, cb)});
+    each(appIdArr, function(idx, appId) {
       if (appId === undefined || appId === null) {
-        logError("Called onUiBound with undefined application, apps array is ", appIdArr);
+        logError("Called onApp with undefined application, apps array is ", appIdArr);
       } else if ($.isPlainObject(appId)) {
         appId = appId.id;
         appIdArr[idx] = appId;
       }
       (! awaitingDepends[appId]) && (awaitingDepends[appId] = {});
       (! loadedLogics[appId]) && (loadedLogics[appId] = {});
-      dependenciesList[idx] && $.each(dependenciesList[idx], function(idx, depName) {
+      dependenciesList[idx] && each(dependenciesList[idx], function(idx, depName) {
         (!awaitingDepends[appId][depName]) && (awaitingDepends[appId][depName] = []);
         if ((!loadedLogics[appId][depName]) && externalDeclarations[depName]) {
           copyLogic(appId, depName);
@@ -3152,21 +3756,22 @@
   function preApp(appId, cb) {
     if (typeof appId != "string") {
       errorp("preApp first parameter must be application id string, got !!", typeof appId);
-      return;
     } else if (boundApps[appId]) {
       errorp("Application !! already bound, preApp should be called before bindUi", appId);
-      return;
     } else if (bindingCurrently[appId]) {
       errorp("Application !! binding in progress, preApp should be called before bindUi", appId);
-      return;
+    } else {
+      var arr = pre[appId] = nvl(pre[appId], []);
+      arr.push(cb);
+      if (preApping[appId]) {
+        cb($, preApping[appId], jiant);
+      }
     }
-    var arr = pre[appId] = nvl(pre[appId], []);
-    arr.push(cb);
   }
 
   function handleBoundArr(appIdArr, cb) {
     var allBound = true;
-    $.each(appIdArr, function(idx, appId) {
+    each(appIdArr, function(idx, appId) {
       if (! boundApps[appId]) {
         eventBus.one(appBoundEventName(appId), function() {
           handleBoundArr(appIdArr, cb);
@@ -3177,9 +3782,9 @@
     });
     if (allBound) {
       var allDependsResolved = true, params = [$];
-      $.each(appIdArr, function(idx, appId) {
-        $.each(awaitingDepends[appId], function(depName, cbArr) {
-          allDependsResolved = allDependsResolved && ($.inArray(cb, cbArr) < 0);
+      each(appIdArr, function(idx, appId) {
+        each(awaitingDepends[appId], function(depName, cbArr) {
+          allDependsResolved = allDependsResolved && (cbArr.indexOf(cb) < 0);
           !allDependsResolved && eventBus.one(dependencyResolvedEventName(appId, depName), function() {
             handleBoundArr(appIdArr, cb);
           });
@@ -3202,40 +3807,24 @@
     return appId + "jiant_dependency_resolved_" + depName;
   }
 
-  function onAppInit(appId, cb) {
-    var deferred = new $.Deferred();
-    onInitAppActions.push(deferred.promise());
-    var readyCb = function() {
-      deferred.resolve();
-    };
-    if (boundApps[appId]) {
-      jiant.logError("Defining and calling onUiBound() before onAppInit().");
-    } else {
-      var eventId = appId + "onAppInit" + appId;
-      eventBus.on(eventId, function () {
-        cb && cb($, boundApps[appId], readyCb);
-      });
-    }
-  }
-
   function forget(appOrId, deep) {
     var appId = extractApplicationId(appOrId),
-        app = boundApps[appId];
+      app = boundApps[appId];
     if (app && deep) {
-      $.each(app.models, function(i, m) {
-          m.reset(undefined);
-          getRepo(m).all().remove();
+      each(app.models, function(i, m) {
+        m.reset(undefined);
+        getRepo(m).all().remove();
+      });
+      each(app.views, function (i, v) {
+        each(v._jiantSpec, function (name, spec) {
+          if (jiant.cssFlag === spec) {
+            v.removeClass(name);
+          } else if (jiant.cssMarker === spec) {
+            v.removeClass($.grep(v.attr('class').split(' '), function (c) {
+              return c.substr(0, name.length + 1) === (name + "_");
+            }).join(' '))
+          }
         });
-      $.each(app.views, function (i, v) {
-        $.each(v._jiantSpec, function (name, spec) {
-            if (jiant.cssFlag === spec) {
-              v.removeClass(name);
-            } else if (jiant.cssMarker === spec) {
-              v.removeClass($.grep(v.attr('class').split(' '), function (c) {
-                return c.substr(0, name.length + 1) === (name + "_");
-              }).join(' '))
-            }
-          });
       });
     }
     app && plainCopy(backupApps[appId], app);
@@ -3251,7 +3840,7 @@
     if (! fromApp) {
       return;
     }
-    $.each(toApp, function(key, val) {
+    each(toApp, function(key, val) {
       delete toApp[key];
     });
     $.extend(true, toApp, fromApp);
@@ -3263,7 +3852,7 @@
 
   function setUiFactory(factory) {
     var ok = true;
-    $.each(["template", "viewComponent", "view"], function(idx, name) {
+    each(["template", "viewComponent", "view"], function(idx, name) {
       if (! factory[name]) {
         jiant.logError("UI Factory doesn't implement method " + name + ", ignoring bad factory");
         ok = false;
@@ -3276,11 +3865,11 @@
     loadLibs(["https://rawgit.com/vecnas/jiant/master/arbor.js"], function() {
       loadLibs(["https://rawgit.com/vecnas/jiant/master/arbor-tween.js"], function() {
         loadLibs(["https://rawgit.com/vecnas/jiant/master/graph.js"], function() {
-          appId || $.each(boundApps, function(key, val) {
+          appId || each(boundApps, function(key, val) {
             appId = key;
             return false;
           });
-          onUiBound(appId, ["jiantVisualizer"], function($, app) {
+          onApp(appId, ["jiantVisualizer"], function($, app) {
             app.logic.jiantVisualizer.visualize($, app);
           });
         }, true)
@@ -3290,7 +3879,7 @@
 
   function asObjArray(arr, name, idxName) {
     var ret = [];
-    $.each(arr, function(i, val) {
+    each(arr, function(i, val) {
       var obj = {};
       obj[name] = val;
       idxName && (obj[idxName] = i);
@@ -3314,9 +3903,16 @@
     customElementTypes[customTypeName] = handler;
   }
 
+  function registerCustomRenderer(customRendererName, handler) {
+    if (! (typeof customRendererName === 'string' || customRendererName instanceof String)) {
+      alert("Custom renderer name should be string");
+    }
+    customElementRenderers[customRendererName] = handler;
+  }
+
   function check(bool, err) {
     if (! bool) {
-      var args = $.makeArray(arguments);
+      var args = copyArr(arguments);
       args.splice(0, 1);
       logError(args);
       jiant.DEV_MODE && alert(err);
@@ -3324,11 +3920,39 @@
   }
 
   function optional(tp) {
-    return [optional, tp];
+    var arr = [optional];
+    if (isArray(tp)) {
+      each(tp, function(i, elem) {arr.push(elem)});
+    } else {
+      arr.push(tp);
+    }
+    return arr;
+  }
+
+  function comp(tp, params) {
+    return [comp, tp, params];
+  }
+
+  function data(field, dataName) {
+    return arguments.length === 0 ? data : [data, field, dataName];
+  }
+
+  function cssMarker(field, className) {
+    return arguments.length === 0 ? cssMarker : [cssMarker, field, className];
+  }
+
+  function cssFlag(field, className) {
+    return arguments.length === 0 ? cssFlag : [cssFlag, field, className];
+  }
+
+  function meta() {
+    var arr = [meta];
+    each(arguments, function(i, arg) {arr.push(arg)});
+    return arguments.length === 0 ? meta : arr;
   }
 
   function version() {
-    return 265;
+    return 299;
   }
 
   function Jiant() {}
@@ -3338,7 +3962,7 @@
     AJAX_SUFFIX: "",
     DEV_MODE: false,
     PAGER_RADIUS: 6,
-    LIB_LOAD_TIMEOUT: 5000,
+    LIB_LOAD_TIMEOUT: 15000,
     isMSIE: eval("/*@cc_on!@*/!1"),
     STATE_EXTERNAL_BASE: undefined,
     getAwaitingDepends: getAwaitingDepends, // for application debug purposes
@@ -3352,16 +3976,16 @@
     module: module,
     loadModule: loadModule,
     bindView: bindView,
+    bindModel: bindModel,
     loadLibs: loadLibs,
     loadCss: loadCss,
     goRoot: goRoot,
     getStackTrace: getStackTrace,
     showTrace: showTrace,
-    onUiBound: onUiBound,
-    onApp: onUiBound,
+    onUiBound: onApp,
+    onApp: onApp,
     preUiBound: preApp,
     preApp: preApp,
-    onAppInit: onAppInit,
     refreshState: refreshState,
     getCurrentState: getCurrentState,
     setUiFactory: setUiFactory,
@@ -3374,6 +3998,7 @@
 
     handleErrorFn: defaultAjaxErrorsHandle,
     registerCustomType: registerCustomType,
+    registerCustomRenderer: registerCustomRenderer,
     logInfo: logInfo,
     logError: logError,
     info: info,
@@ -3383,6 +4008,7 @@
     check: check,
     parseTemplate: function(text, data) {return $(parseTemplate(text, data));},
     parseTemplate2Text: parseTemplate2Text,
+    copy2clipboard: copy2cb,
     version: version,
 
     formatDate: formatDate,
@@ -3406,6 +4032,8 @@
 
     optional: optional,
 
+    comp: comp,
+
     collection: "jiant.collection",
     container: "jiant.container",
     containerPaged: "jiant.containerPaged",
@@ -3416,6 +4044,7 @@
     image: "jiant.image",
     imgBg: "jiant.imgBg",
     input: "jiant.input",
+    href: "jiant.href",
     inputSet: "jiant.inputSet",
     inputSetAsString: "jiant.inputSetAsString",
     inputDate: "jiant.inputDate",
@@ -3424,28 +4053,35 @@
     label: "jiant.label",
     nlabel: "jiant.nlabel",
     numLabel: "jiant.numLabel",
-    meta: "jiant.meta",
-    cssFlag: "jiant.cssFlag",
-    cssMarker: "jiant.cssMarker",
+    meta: meta,
+    cssFlag: cssFlag,
+    cssMarker: cssMarker,
     pager: "jiant.pager",
     slider: "jiant.slider",
     tabs: "jiant.tabs",
     fn: function (param) {},
-    data: function (val) {},
+    data: data,
     lookup: function (selector) {},
     transientFn: function(val) {},
 
+    et: { // element types
+      ctl2state: "jiant.ctl2state",
+      ctl2root: "jiant.ctl2root",
+      ctlBack: "jiant.ctlBack"
+    },
     flags: {
       ajaxSubmitAsMap: "_jiantFlagSubmitAsMap"
     },
 
     intro: {
+      isFunction: isFunction,
       isTemplate: function(obj) {return obj && obj._jiantType === jTypeTemplate}
     },
 
     key: {left: 37, up: 38, right: 39, down: 40, del: 46, backspace: 8, tab: 9, end: 35, home: 36, enter: 13, ctrl: 17,
       escape: 27, dot: 190, dotExtra: 110, comma: 188,
-      a: 65, c: 67, u: 85, w: 87, space: 32, 1: 49, 2: 50, 3: 51, 4: 52, 5: 53, 6: 54}
+      a: 65, c: 67, u: 85, w: 87, space: 32, 1: 49, 2: 50, 3: 51, 4: 52, 5: 53, 6: 54, 7: 55, 8: 56, 9: 57,
+      f1: 112, f2: 113, f3: 114, f4: 115, f5: 116, f6: 117, f7: 118, f8: 119, f9: 120}
 
   };
 
