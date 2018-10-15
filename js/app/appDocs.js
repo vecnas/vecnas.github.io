@@ -72,7 +72,8 @@ $(function() {
       views: {
         views0: {},
         templates: {},
-        viewsElems: {}
+        viewsElems: {},
+        comp0: {}
       },
 
       models: {
