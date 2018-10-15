@@ -194,7 +194,75 @@ Ajax функции автоматически разбирают объекты
 myApp.ajax.doStaff(62345); // will produce /doStaff?id=62345
 myApp.ajax.doStaff(62345, "works"); // will produce /doStaff?id=62345&name=works</code></pre>
 
-<h4>Конфигурация</h4>
+<h4>Конфигурация методов</h4>
+Используя возвращаемое значение можно сконфигурировать конкретный аякс метод:
+<pre><code class="js">
+  ajax: {
+    getData: function(id, cb) {
+      return {
+        method: "post|get|anything",
+        url: "",
+        paramMapping: {
+          "name": "paramName"
+        },
+        headers: {
+        }
+      }
+    }
+  }
+</code></pre>
+Если метод возвращает значение в виде объекта, следующие поля используются для конфигурации:
+<ul>
+  <li><b>method</b> - устанавливается в метод запроса, как правило GET или POST, но может быть и любой другой.
+    Это полезно для поддержки REST API</li>
+  <li><b>url</b> - произовольный урл на который будет посылаться данный запрос,
+    при этом урл может включать подставляемые значения, например <b>/person/:id/save</b>. Это полезно для поддержки REST API.
+  Если урл не абсолютный, к нему добавляется текущий аякс префикс (см. следующую секцию)</li>
+  <li><b>paramMapping</b> - задает соответствие имен подставляемых параметров в урле и передаваемых полей объектов.
+    Это может быть полезно если одно значение должен передаваться как часть урла и часть запроса,
+    т.к. все значения, подставляемые в урл, не передаются как параметры запроса</li>
+  <li><b>headers</b> - задает данные, передаваемые в http headers, посредством маппинга</li>
+</ul>
+Например,
+<pre><code class="js">
+  ajax: {
+    getData: function(personId, as, cb) {
+      return {
+        method: "get",
+        url: "/api/person/:id",
+        paramMapping: {
+          "personId": "id"
+        },
+        headers: {
+          "as": "content-type"
+        }
+      }
+    },
+    testObjRest3: function(a, bb, c, cb) {
+      return {
+        paramMapping: {a: "aa"},
+        url: "http://someurl.com:8282/person/:bb/:c/:aa/subsave"
+      }
+    },
+    testHeaders: function(param0, param1, param2, cb) {
+      return {url: "/myUrl", headers: {
+                                param0: "some-h",
+                                param2: "anotherHeader"
+                              }}
+    }
+  }
+  ....
+  jiant.logInfo("Expected: ", "/person/bbb/ccc/aaa/subsave");
+  app.ajax.testObjRest3("aaa", "bbb", "ccc");
+
+  jiant.logInfo("Expected 2 headers and one param");
+  app.ajax.testHeaders("aaa", "bbb", "ccc");
+
+</code></pre>
+
+
+
+<h4>Конфигурация приложения</h4>
 
 Следующие параметры конфигурации доступны на уровне приложения:
 <pre><code class="js">var myApp = {
@@ -248,7 +316,7 @@ jiant.AJAX_SUFFIX = ".asp";</code></pre>
 Любые вызовы <b>jQuery ajaxSetup</b> влияют на выполнение аяксовых вызовов.
 Например, конфигурация для кроссдомена или выполнение запросов используя POST а не GET.
 <p></p>
-Параметр <b>antiCache3721=current time</b> добавляется к каждому вызову во избежание кэширования
+Параметр <b>antiCache3721=current time</b> добавляется к каждому вызову во избежание кэширования, если используется GET
 <p></p>
 Для форм - <b>submitForm</b> может использоваться чтобы отослать форму на сервер.
 Этот метод также использует текущие настройки <b>ajaxPrefix</b>, <b>ajaxSuffix</b>, <b>crossDomain</b>.
