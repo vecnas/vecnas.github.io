@@ -1,0 +1,576 @@
+<h4>Рецепты</h4>
+
+Здесь приводятся типичные задачи, встающие при разработке клиентского приложения и способы их решения в jiant.
+Если какие-либо функции представляются неясными, обратитесь к соответствующим секциям с подробной документацией.
+
+<recipe>
+  <name>
+    <h4>Постраничное содержимое</h4>
+  </name>
+  <task>
+    <b>Задача:</b> показываем некие данные с сервера с возможностью постраничного просмотра
+    <p></p>
+  </task>
+  <solution>
+
+<b>Решение:</b> используйте <a href="#jDocs=,xl,xl0,0">jiant_xl</a> page... функции. Если нужно только показать данные, воспользуйтесь
+<a href="#jDocs=,xl,xl0,11">jiant.xl.pageableFilterableSortable</a> или <a href="#jDocs=,xl,xl0,13">jiant.xl.pagedContent</a>,
+если с этими данными нужно дополнительно работать, загружайте их в модель
+используя <a href="#jDocs=,xl,xl0,9">jiant.xl.pageableFilterableSortableModel</a>
+и отображайте эту модель через <a href="#jDocs=,xl,xl0,6">jiant.xl.bindList</a>
+<p></p>
+  </solution>
+  <example>
+    <b>Пример:</b>
+    Мы хотим показать список пользователей с возможностью постраничного листания
+    <pre><code class="js">
+      var pageableModel = jiant.xl.pageableFilterableSortableModel(
+          app.models.user, // загружаем данные в модель пользователей
+          app.ajax.getUsers, // аяксовый метод для загрузки пользователей
+          null, // без состояний
+          app.views.usersView.pager, // элемент типа jiant.pager, отвечающий за постраничное листание
+          null); // без фильтра и сортировки
+      pageableModel(); вызываем начальную загрузку
+      jiant.xl.bindList(
+          app.models.user, // показываем модель пользователей
+          app.views.usersView.usersContainer, // контейнер для отображения
+          app.templates.userTm, // шаблон для отображения отдельного пользователя
+          "ui", // поле модели, куда сохраняется ссылка на сгенерированное визуальное представление отдельной записи
+          null, // функция сортировки не нужна
+          true, // подписываемся на изменения модели
+          true)(); // обратное связывание данных - изменения на интерфейсе также будут менять саму модель
+    </code></pre>
+    <p></p>
+  </example>
+  <internals>
+<b>Как это работает:</b>
+<ul>
+  <li><b>pageableModel</b> связывает несколько объектов, подписывается на изменения <b>pager</b> и при изменении
+    номера страницы в нем запрашивает данные с серверва используя переданный метод <b>getUsers</b>, после чего
+    удаляет из модели имеющиеся там данные и загружает полученные с сервера. Попутно обновляет <b>pager</b>
+    информацией о текущей странице и общем количестве страниц. Данные должны приходить с сервера
+    в <a href="#jDocs=,views,viewsElems,18">специальном формате</a></li>
+  <li>Функция <b>bindList</b> подписывается на изменения модели. При добавлении объектов модели, каждый из
+    них отрисовывается в элемент DOM исползуя шаблон <b>userTm</b> и добавляется в контейнер.
+    На удаление соответствующий элемент удаляется. При изменении данных в модели, они меняются в соответствующем
+    элементе без его перегенерации.</li>
+  <li>Теперь имеем связку - изменения <b>pager</b> приводят к запросу данных с сервера и записи их в модель.
+    После чего на интерфейсе меняется внешние представление модели</li>
+</ul>
+  </internals>
+</recipe>
+<!--
+
+<recipe>
+  <name></name>
+  <task></task>
+  <solution></solution>
+  <example></example>
+  <internals></internals>
+</recipe>
+
+-->
+
+<recipe>
+  <name>
+    <h4>Общение с сервером</h4>
+
+  </name>
+  <task>
+    <b>Задача:</b> нужно передавать/получать данные с сервера через через ajax вызовы
+    <p></p>
+
+  </task>
+  <solution>
+    <b>Решение:</b> объявляем <a href="#jDocs=,ajax,ajax0,0">секцию ajax</a>, правильно именуя функции и параметры, после связывания - используем
+    <p></p>
+
+  </solution>
+  <example>
+    <b>Пример:</b>
+    Загружаем данные о пользователе, меняем ему имя и сохраняем на сервер
+    <pre><code class="js">
+      var app = {
+          .....
+          ajax: {
+              getUser: function(id, cb) {},
+              saveUser: function(user, cb) {}
+      }
+      jiant.app(app);
+      .....
+      jiant.onApp(app, function($, app) {
+          app.ajax.getUser(1, function(user) {
+              user.name = "New name";
+              app.ajax.saveUser(user, function() {
+                  alert("User updated");
+              });
+          });
+      });
+    </code></pre>
+    <p></p>
+
+  </example>
+  <internals>
+
+<b>Как это работает:</b>
+<ul>
+  <li>Во время связывания приложения jiant генерирует содержимое объявленных функций</li>
+  <li><b>onApp</b> коллбэк выполняется только после связывания, когда функции уже реализованы</li>
+  <li>Теперь вызов <b>saveUser</b> транслируется в запрос на сервер, на урл <b>/saveUser</b>
+    и параметры вызова сериализуются и передаются как параметры http запроса с тем же именем</li>
+</ul>
+
+  </internals>
+</recipe>
+
+<recipe>
+  <name><h4>Прятать-показывать элементы</h4>
+  </name>
+  <task><b>Задача:</b> Необходимо прятать-показывать элемент в зависимости от данных
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> воспользуйтесь <a href="#jDocs=,views,views0">условным показом элементов</a>
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  Прячем кнопку disable если пользователь уже неактивен
+  <pre><code class="js">
+    view: {
+      disable: jiant.ctl,
+      jInit: function() {
+        this.disable.hideOn("status", "disabled");
+      }
+    }
+  </code></pre>
+  </example>
+  <internals></internals>
+</recipe>
+
+
+<recipe>
+  <name><h4>Управлять внешним видом</h4>
+  </name>
+  <task><b>Задача:</b> Необходимо управлять стилем элемента в зависимости от данных, добавлять-убирать классы CSS
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> воспользуйтесь <a href="#jDocs=,views,viewsElems,3">jiant.cssFlag</a>
+  и <a href="#jDocs=,views,viewsElems,4">jiant.cssMarker</a> типами элементов виджета
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  Если пользователь активен - прячем кнопку регистрации и выделяем имя жирным шрифтом
+  <pre><code class="js">
+    views: {
+        usersView: {
+            active: jiant.cssFlag
+        }
+    }
+    ......
+    app.ajax.getUser(12, function(user) {
+        user.active = true;
+        app.views.usersView.propagate(user); // propagate находит поля виджета с тем же именем и выставляет на них значения
+    });
+  </code></pre>
+
+  <pre><code class="html">
+    &lt;div id="usersView" class="active"> &lt!-- класс active добавлен jiant'ом через cssFlag active -->
+        &lt;span class="userName">John Smith&lt;/span>
+        &lt;button class="registerCtl">Register&lt;/button>
+    &lt;/div>
+  </code></pre>
+
+  <pre><code class="css">
+    #usersView.active .userName {
+        font-weight: bold;
+    }
+    #usersView.active .registerCtl {
+        display: none;
+    }
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  При вызове propagate jiant делает следующее
+  <ul>
+    <li>для элемента виджета <b>active</b> находит поле данных с тем же именем</li>
+    <li>Это поле <b>user.active</b> имеет значение <b>true</b></li>
+    <li>Далее, так как элемент имеет тип <b>cssFlag</b>, jiant выставляет CSS класс с именем <b>active</b> на виджет
+      <b>usersView</b></li>
+  </ul>
+  </internals>
+</recipe>
+
+
+<recipe>
+  <name><h4>Организовать код приложения</h4>
+  </name>
+  <task><b>Задача:</b> нужно организовать файлы приложения в удобном для управления и в частности для минификации виде.
+  Также хочется организовать поступенчатую подгрузку только нужного кода, для оптимизации скорости приложения
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> используйте <a href="#jDocs=,modules,modules0,0">модули</a>, распределите ваш код по модулям.
+  Подгружайте стартовые модули через секцию <b>modules</b> приложения и остальные через <b>jiant.loadModule</b>
+  (включая сторонние библиотеки)
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    // приложение
+    modules: ["demoMain"]
+
+    // файл demoMain.js
+    jiant.module("demoMain", function($, app) {
+        jiant.onApp(app, function($, app) {
+            app.semaphores.time4search.on(function() {
+                jiant.loadModule(app, "searchEngine");
+            });
+        });
+    });
+
+    // файл searchEngine.js
+    jiant.module("searchEngine", ["googleMaps"], function($, app) ....
+
+    // файл googleMaps.js, либо прямо в любом имеющемся файле
+    jiant.module("googleMaps", {
+      // ссылки на скрипты и стили гугл карт
+    });
+
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Модуль это анонимная функция, которая исполняется в контексте приложения</li>
+    <li>Во время связывания приложения jiant загружает модули, объявленные в секции <b>modules</b></li>
+    <li>Если модуль уже доступен, например как часть минифицированного скритпа, он используется</li>
+    <li>Если модуля еще нет, он загружается из файла, урл которого определяется по
+      <a href="#jDocs=,modules,modules0,0">заданным правилам</a></li>
+    <li><b>loadModule</b> догружает модули в любое время, пользуясь теми же правилами</li>
+    <li>Таким образом, можно загрузить только ключевые модули на старте приложения и догружать остальные
+      по мере необходимости или в фоновом режиме</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+<recipe>
+  <name><h4>Повторяющееся содержимое</h4></name>
+  <task><b>Задача:</b> отобразить некое повторяющееся содержимое - несколько пользователей, список домов и так далее
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> используйте <a href="#jDocs=,views,templates,0">шаблоны</a>, и компонент <b>jiant.comp</b>
+  <p></p>
+  </solution>
+  <example>
+    <b>Пример:</b>
+    <pre><code class="js">
+      views: {
+        main: {
+          container: jiant.comp("userTm");
+        }
+      },
+      templates: {
+          userTm: {
+              name: jiant.label,
+              email: jiant.label
+          }
+      },
+
+      .....
+
+      app.ajax.getUsers(function(users) {
+          app.views.main.container.propagate({container: users});
+      });
+
+    </code></pre>
+    <p></p>
+
+  </example>
+  <internals>
+    <b>Как это работает:</b>
+    <ul>
+      <li><b>jiant.comp</b> отрисовывает заданный шаблон для каждого элемента списка</li>
+      <li>Результат DOM элемент, который тут же добавляется в заданный контейнер</li>
+    </ul>
+
+  </internals>
+</recipe>
+
+
+<recipe>
+  <name><h4>Запоминать состояние</h4></name>
+  <task><b>Задача:</b> Организовать возможность по обновлению браузера запоминать текущее состояние приложения и восстанавливать его
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> Использовать <a href="#jDocs=,states,states0,0">состояния</a>, хранить/восстанавливать
+  параметры как параметры состояния. Также воспользоваться xl функцией <a href="#jDocs=,xl,xl0">jiant.xl.statefulApp</a>
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    states: {
+        main: {},
+        user: {}
+    },
+    views: {
+        mainView: {},
+        userView: {}
+    }
+    .....
+    jiant.xl.statefulApp(app, "View", app.states.main)();
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Каждое состояние приложения транслируется в строку хэш навигации</li>
+    <li>Каждому состоянию сопоставляется виджет с id равным имени состояния плюс суффикс <b>View</b></li>
+    <li>Теперь при переходе в данное состояние показывается сопоставленный элемент интерфейса, а предыдущий прячется</li>
+    <li>Начальное состояние видимости интерфейса остается то, которое задано разметкой, <b>statefulApp</b>
+      не прячет все виджеты на старте</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Общие данные приложения</h4></name>
+  <task><b>Задача:</b> некоторые данные используются не только в одном месте,
+  при этом собирать весь код для работы с ними в одно место произведет кашу.
+  Также хочется отслеживать изменения данных и реагировать на них
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> использовать <a href="#jDocs=,models,models0,0">модели</a>, в частности подписки на изменения моделей
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    models: {
+        user: {
+            jRepo: {
+                add: function(arrOrObj) {},
+                all: function(arrOrObj) {},
+                findById: function(id) {},
+            },
+            name: function(val) {},
+            email: function(val) {},
+        }
+    }
+    .....
+    app.models.user.jRepo.add.on(function() {
+        jiant.info("User added");
+    });
+    app.ajax.getUsers(function(users) {
+        app.models.user.jRepo.add(users);
+    });
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Jiant реализует пустые спецификации моделей во время связывания</li>
+    <li>Также автоматически генерируется набор методов для работы с событиями изменений модели</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Зависимости кода</h4>
+  </name>
+  <task><b>Задача:</b> необходимо выполнять какие-то действия только когда получены определенные данные,
+  либо в заданной последовательности. При этом выполняемый код раскидан.
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> Если есть зависимость от асинхронно получаемых данных - используйте
+  <a href="#jDocs=,semaphores,semaphores0,0">семафоры</a> или <a href="#jDocs=,models,models0,0">модели</a>.
+  Если нужно выполнять код последовательно - используйте <a href="#jDocs=,modules,modules0,0">модули</a>,
+  они выполняются в строго заданной последовательности, даже после минификации.
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    app.semaphores.initialDataLoaded.on(function(initialData) {
+        .....
+    });
+    .....
+    app.semaphores.initialDataLoaded.fire(initialData);
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Коллбэк семафора срабатывает тогда когда семафор отпущен или если он уже был отпущен ранее</li>
+    <li>Данные, переданные при освобождении семафора, будут переданы всем коллбэкам</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Организация событий</h4>
+  </name>
+  <task><b>Задача:</b> в рамках приложения должны происходить какие-то события, типа "пользователь залогинился",
+  "документ записан" и так далее.
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> определите в приложении секцию <a href="#jDocs=,events,events0,0">events</a> и используйте
+  авто-сгенерированный event bus.
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    events: {
+        userChangedColorScheme: {
+            fire: function(schemeId) {},
+            on: function(cb) {},
+            once: function(cb) {}
+        }
+    }
+    .....
+    app.events.userChangedColorScheme.on(function(schemeId) { .....
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Во время связывания приложения jiant генерирует внутреннюю реализацию для пустых функций секции events</li>
+    <li>При вызове <b>fire</b> событие передается всем подписанным на него коллбэкам <b>on</b> или <b>once</b></li>
+    <li>Параметры вызова <b>fire</b> передаются коллбэкам как параметры их вызова, что позволяет передавать через
+      событие любые данные</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Документирование проекта</h4>
+  </name>
+  <task><b>Задача:</b> нужно документировать проект
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> при использовании jiant эта задача решается более чем на 50%, во-первых мы видим общую структуру
+  приложения в начальной <a href="#jDocs=,basics,basics_binding,0">переменной спецификации приложения</a>.
+  Во-вторых во время исполнения вызвав в консоли <a href="#jDocs=,misc,misc0,1">jiant.getApps()</a>
+  мы увидим структуру всех имеющихся приложений с учетом всех динамически произведенных изменений
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    jiant.logInfo(jiant.getApps()["myApp"].models);
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Это заложено в базовую концепцию jiant, и является одним из ключевых отличий от подавляющего большинства библиотек</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Чистота</h4>
+  </name>
+  <task><b>Задача:</b> сохранять глобальное пространство имен javascript чистым во избежание конфликтов
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> достигается автоматически, нет необходимости даже объявлять глобальную переменную приложения,
+  как в приведенном примере
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    $(function() {
+        jiant.app({
+            id: "anonym",
+            modules: [],
+            views: {},
+            templates: {},
+            models: {}
+        });
+    });
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Все функции работы с приложениями jiant являются анонимными коллбэками</li>
+    <li>Если хочется простого доступа к приложению, можно воспользоваться
+      <a href="#jDocs=,misc,misc0,0">jiant.getApps()[appId}</a> либо объявить саму спецификацию приложения
+      как глобальную переменную</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<recipe>
+  <name><h4>Подгрузка сторонних библиотек</h4>
+  </name>
+  <task><b>Задача:</b> организовать удобный механизм подгрузки сторонних библиотек
+  <p></p>
+  </task>
+  <solution><b>Решение:</b> использовать <a href="#jDocs=,modules,modules_libs,0">библиотечные модули</a>,
+  подготовить пакеты нужных библиотек и дальше использовать их где угодно в своих проектах
+  <p></p>
+  </solution>
+  <example><b>Пример:</b>
+  <pre><code class="js">
+    // bootstrap337.js
+    jiant.module("bootstrap337", {css: ["https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"],
+                                js: "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"});
+
+    // bootstrap4a3.js
+    jiant.module("bootstrap4a3", {css: "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.3/css/bootstrap.min.css"});
+
+    // myModule.js
+    jiant.module("myModule", ["bootstrap337", "jqueryUiLatest"]
+
+  </code></pre>
+  <p></p>
+  </example>
+  <internals><b>Как это работает:</b>
+  <ul>
+    <li>Само объявление библиотечного модуля не вызывает загрузку переданных урлов</li>
+    <li>При использовании модуля посредством <b>loadModule</b> или через секцию приложения <b>modules</b> jiant
+      загружает содержимое заданных урлов, включая скрипты, стили и html</li>
+    <li>Затем в строго заданной последовательности эти библиотеки добавляются на страницу</li>
+  </ul>
+  </internals>
+</recipe>
+
+
+
+<!--
+
+
+<recipe>
+  <name></name>
+  <task></task>
+  <solution></solution>
+  <example></example>
+  <internals></internals>
+</recipe>
+
+
+<h4></h4>
+<b>Задача:</b>
+<p></p>
+<b>Решение:</b>
+<p></p>
+<b>Пример:</b>
+<pre><code class="js">
+</code></pre>
+<p></p>
+<b>Как это работает:</b>
+<ul>
+  <li></li>
+</ul>
+
+-->

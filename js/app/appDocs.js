@@ -58,7 +58,7 @@ $(function() {
         basics_binding: {},
         basics_lifecycle: {},
         basics_app_params: {},
-        basic_receipts: {}
+        basic_recipes: {}
       },
 
       advanced: {
