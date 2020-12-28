@@ -10,12 +10,14 @@ $(function() {
 
     modules: ["docsMain"],
 
-    intl: {
-      i18n: 1,
-      url: "html/ru.json",
-      t: function(val) {},
-      onTop: function(val) {},
-      loadError: function() {}
+    logic: {
+      intl: {
+        i18n: 1,
+        url: "html/ru.json",
+        t: function(val) {},
+        onTop: function(val) {},
+        loadError: function() {}
+      }
     },
 
     states: {
@@ -57,12 +59,16 @@ $(function() {
         basics_concepts: {},
         basics_binding: {},
         basics_lifecycle: {},
+        basics_private: {},
         basics_app_params: {},
         basic_recipes: {}
       },
 
       advanced: {
         advanced0: {},
+        advanced_modules: {},
+        advanced_comp: {},
+        advanced_refactoring: {},
         advanced_crossdomain: {},
         advanced_devmode: {},
         advanced_faststart: {},

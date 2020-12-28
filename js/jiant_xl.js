@@ -64,7 +64,9 @@
  xl.0.58: bindList.off unsubscribes from model updates, default app state uses state.replace
  xl.0.59: jiant.refs removed, j 2.41 compatible
  xl.0.60: pageableFilterableSortable one more parameter: mapping
- xl.0.61: pseudoSelect.unselect() added
+ xl.0.60.1: .sortFn(fn) added to bindList ret val
+ xl.0.61: proper sorting in bindList
+ xl.0.62: viewByAjaxOnState(view, ajax, state) added
  */
 
 (function() {
@@ -74,7 +76,7 @@
   var tmpJiantXl = {
 
     version: function() {
-      return 61;
+      return 62;
     },
 
     ctl2state: function(ctl, state, selectedCssClass, goProxy) {
@@ -143,7 +145,7 @@
     },
 
     bindList: function(model, container, template, viewFieldSetterName, sortFn, subscribeForUpdates, reversePropagate, elemFactory, mapping) {
-      var addHnd, remHnd;
+      var addHnd, remHnd, sorted = [];
       function renderObj(obj) {
         var tm = $.isFunction(template) ? template(obj) : template,
             cont = $.isFunction(container) ? container(obj) : container,
@@ -168,10 +170,11 @@
           view = tm.parseTemplate(obj, subscribeForUpdates, reversePropagate, mapping);
         }
         if (sortFn && $.isFunction(sortFn) && jiant.getRepo(model).all) {
-          $.each(jiant.getRepo(model).all(), function(i, item) {
+          $.each(sorted, function(i, item) {
             var order = sortFn(obj, item);
             if (item[viewFieldSetterName] && item[viewFieldSetterName]() && order < 0) {
               useTm && view.insertBefore(item[viewFieldSetterName]()[0]);
+              sorted.splice(i, 0, obj);
               appended = true;
               return false;
             }
@@ -179,6 +182,7 @@
         }
         if (!appended) {
           useTm && cont.append(view);
+          sorted.push(obj);
         }
         $.isFunction(obj[viewFieldSetterName]) && view && obj[viewFieldSetterName](view);
       }
@@ -192,6 +196,7 @@
                 });
             remHnd = m.remove && m.remove.on(function (obj) {
                   obj[viewFieldSetterName] && (elemFactory ? elemFactory.remove(obj[viewFieldSetterName]()) : obj[viewFieldSetterName]().remove());
+                  sorted = $.grep(sorted, function(elem, i) {return elem != obj});
                 });
             $.each(jiant.getRepo(model).all(), function(i, obj) {
               renderObj(obj);
@@ -203,6 +208,9 @@
         $.each(jiant.getRepo(model).all(), function (i, obj) {
           $.isFunction(obj[viewFieldSetterName]) && obj[viewFieldSetterName]() && $.isFunction(obj[viewFieldSetterName]().off) && obj[viewFieldSetterName]().off();
         });
+      };
+      ret.sortFn = function(fn) {
+        sortFn = fn;
       };
       return ret;
     },
@@ -449,10 +457,6 @@
             });
             selected && elem.click();
           },
-          unselect: function() {
-            selectClass && selectedElem && selectedElem.removeClass(selectClass);
-            selectedVal = null;
-          },
           selected: function() {
             if (arguments.length > 0) {
               selectedVal = arguments[0];
@@ -476,6 +480,14 @@
         impl.add($(elem), arrVals && arrVals.length > idx ? arrVals[idx] : null, cb, selectedIdx === idx);
       });
       return impl;
+    },
+
+    viewByAjaxOnState: function(view, ajax, state) {
+      state.start(function() {
+        ajax(function(data) {
+          view.propagate(data);
+        })
+      });
     },
 
     elementVisibilityByEvent: function(elem, eventsList) {},
