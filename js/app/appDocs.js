@@ -72,6 +72,7 @@ $(function() {
         advanced_internal: {},
         advanced_this_app: {},
         advanced_todo_app: {},
+        advanced_troubleshooting: {},
         advanced_crossdomain: {},
         advanced_devmode: {},
         advanced_faststart: {},
