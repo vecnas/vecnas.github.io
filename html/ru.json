@@ -49,5 +49,7 @@
   "advanced_faststart": "Быстрый старт",
   "advanced_project": "Проектирование",
   "advanced_internal": "Внутренняя архитектура",
+  "advanced_this_app": "Пример - приложение документации",
+  "advanced_todo_app": "Пример - приложение todo-mvc",
   "advanced_crossdomain": "Кроссдомен"
 }
