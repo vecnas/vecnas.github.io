@@ -7,11 +7,11 @@ Jiant содержит несколько полей, которые можно 
 <table class="defTable">
     <tr>
         <td>AJAX_PREFIX</td>
-        <td>Глобальная настройка префикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,5">про аякс</a></td>
+        <td>Глобальная настройка префикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,7,">про аякс</a></td>
     </tr>
     <tr>
         <td>AJAX_SUFFIX</td>
-        <td>Глобальная настройка суффикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,5">про аякс</a></td>
+        <td>Глобальная настройка суффикса при формировании урла для аякс запросов, см. <a href="#jDocs=,ajax,ajax0,7,">про аякс</a></td>
     </tr>
     <tr>
         <td>DEV_MODE</td>
@@ -19,7 +19,7 @@ Jiant содержит несколько полей, которые можно 
     </tr>
     <tr>
         <td>PAGER_RADIUS</td>
-        <td>Количество показываемых страниц от текущей в элементе <a href="#jDocs=,views,viewsElems,17">jiant.pager</a></td>
+        <td>Количество показываемых страниц от текущей в элементе <a href="#jDocs=,views,viewsElems,21">jiant.pager</a></td>
     </tr>
     <tr>
         <td>LIB_LOAD_TIMEOUT</td>
@@ -70,7 +70,7 @@ key: {left: 37, up: 38, right: 39, down: 40, del: 46, backspace: 8,
 
 Например,
 <pre><code class="js">
-    var obj = { a: "1", b: "2"};
+    const obj = { a: "1", b: "2"};
     obj[flags.ajaxSubmitAsMap] = 1;
     app.ajax.sendObj(obj);
 
