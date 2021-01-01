@@ -18,7 +18,7 @@
 
 <ul>
     <li>Автозавершение в IDE, вместо <code>elem.find(".someClass")</code> пишем
-        <code>elem.so</code> и автозавершаем в секунду
+        <code>elem.so</code> и автозавершаем
     </li>
     <li>Никаких ошибок из-за неверного написания имени класса или идентификатора - все уже проверено на старте
         приложения
@@ -32,13 +32,13 @@
     </li>
     <li>Высочайший уровень абстракции, ускоряющий понимание
     </li>
-    <li>Ненавязчивость. Вы по прежнему можете пользоваться доисторическим долотом, как в этом примере,
+    <li>Ненавязчивость. Вы по прежнему можете пользоваться привычными конструкциями, как в этом примере,
         где строки 2 и 3 делают одно и то же, только 3я немного быстрее работает и быстрее пишется ввиду
         автозавершения:
         <pre><code class="js">
             var mainView = myapp.views.mainView;
-            mainView.find("._someClass").attr("css", "border: 1px");
-            mainView.someClass.attr("css", "border: 1px");
+            mainView.find("._someClass").attr("css", "border: 1px"); //old style
+            mainView.someClass.attr("css", "border: 1px"); // new style
         </code></pre>
     </li>
     <li>

@@ -72,6 +72,40 @@
 <h4>API компонента</h4>
 Иногда необходимо иметь javascript API компонента, чтобы управлять его поведением-данными из javascript.
 На этот случай необходимо использовать элемент <b>jiant.fn</b>:
+<pre><code class="html">
+  const tm = app.templates.intsliderTm = {
+      input: jiant.input,
+      maxLabel: jiant.label,
+      minLabel: jiant.label,
+      max: jiant.fn(function(val) {
+          this._maxValue = isNumber(val) ? val : this._maxValue;
+          this.maxLabel.html(this._maxValue);
+          return this._maxValue;
+      }),
+      min: jiant.fn(function(val) {
+          this._minValue = isNumber(val) ? val : this._minValue;
+          this.minLabel.html(this._minValue);
+          return this._minValue;
+      }),
+    ....
+</code></pre>
+Теперь объявляем шаблон как компонент:
+<pre><code class="html">
+    views: {
+        myView: {
+            slider: jiant.comp("intsliderTm"),
+            ....
+        }
+    }
+</code></pre>
+Использование API:
+<pre><code class="html">
+    jiant.onApp(app, function() {
+        app.views.myView.slider.min(1);
+        app.views.myView.slider.max(12);
+    });
+</code></pre>
+<b>jiant.fn</b> работает как флаг, которым отмечены функции, являющиеся частью API и не требующие другой интрерпретации.
 
 <h4>Списки</h4>
 <b>jiant.comp</b> отрисовывает как единичные объекты, так и массивы объектов, отталкиваясь от объявления.
@@ -103,5 +137,3 @@
         &lt;div class="_b"> &lt;/div>
     &lt;/div>
 </code></pre>
-
-

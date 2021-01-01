@@ -35,7 +35,7 @@
 
     jiant.DEV_MODE = true; // включаем режим разработки для упрощения отладки
 
-    var app = { // объявляем переменную описывающую приложение
+    const app = { // объявляем переменную описывающую приложение
 
       id: "hello",  // идентификатор обязателен
 
@@ -73,7 +73,7 @@
   jiant.module("hello", function($, app) { // объявляем модуль с именем, совпадающим с именем файла
 
     jiant.onApp(app, function($, app) { // на связывание приложения регистрируем следующую функциональность
-      var ask = app.views.ask,
+      const ask = app.views.ask,
       		greet = app.views.greet;
     	ask.propagate(app.models.user, true, true, {nameInput: "name"}); // привязываем вьюшку к модели, с обновлением в обе стороны
     	ask.submitCtl.click(function() { // по нажатию на кнопку
@@ -97,11 +97,12 @@
     <li>
         Создаем определение приложения в виде JSON:
         <pre><code class="js">
-            var myapp = (function(jiant) {
-                var container = jiant.container,
-                ctl = jiant.ctl,
-                label = jiant.label;
-                return {
+          $(function() {
+              const container = jiant.container,
+                  ctl = jiant.ctl,
+                  label = jiant.label;
+
+              const myapp = {
 
                     id: "myapp",
 
@@ -130,8 +131,8 @@
 
                     models: {}
 
-                };
-            })(jiant);
+              };
+          });
         </code></pre>
 
         Никакого html/jscript на этом этапе - только чистая абстракция приложения - это важно для успешного анализа.
@@ -171,15 +172,15 @@
       и добавляем его в список модулей приложения:
         <pre><code class="js">
           jiant.module("myModule", function($, app) {
-            jiant.onUiBound(app, [], function($, app) {
-                var main = app.views.mainLayoutView,
+            jiant.onApp(app, [], function($, app) {
+                const main = app.views.mainLayoutView,
                 menu = app.views.mainMenuView,
                 tmMenuItem = app.templates.tmMenuItem;
 
                 main.menuContainer.append(menu);
                 app.ajax.getData(someDataIdHere, function(serverData) {
                     $.each(serverData.menuItems, function(idx, menuItem) {
-                        var menuElem = tmMenuItem.parseTemplate({label: menuItem.labelText});
+                        const menuElem = tmMenuItem.parseTemplate({label: menuItem.labelText});
                         menu.append(menuElem);
                         menuElem.control.click(function() {
                             alert("Where we are go today?");

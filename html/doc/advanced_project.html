@@ -6,7 +6,7 @@
 <ol>
     <li>Придумываем название проекту, используем его как идентификатор. Например, demoProject</li>
     <li>В папке js создаем папку с названием проекта, в ней создаем папку app, в которой будут находиться модули.
-        Рядом создаем .js файл с названием проекта:
+        Рядом или прямо в этой папке создаем .js файл с названием проекта:
         <pre><code class="js">
             js
             |- demoProject
@@ -16,22 +16,26 @@
         </code></pre>
     </li>
     <li>
-        файл <b>demoProject.js</b> содержит jiant-определение проекта,
+        файл <b>demoProject.js</b> содержит jiant-определение проекта и вызов функции связывания,
         <pre><code class="js">
-            var demoProject = {
-                id: "mycompany.demoProject",
-                appPrefix: "_",
-                modulesPrefix: "app/",
-                modules: ["main"],
-                views: {},
-                templates: {}
-            }
+            $(function() {
+                const demoProject = {
+                    id: "mycompany.demoProject",
+                    appPrefix: "_",
+                    modulesPrefix: "app/",
+                    modules: ["main"],
+                    views: {},
+                    templates: {}
+                };
+
+                jiant.app(demoProject);
+            });
         </code></pre>
     </li>
     <li> <b>main.js</b> пока что содержит только пустой модуль:
         <pre><code class="js">
             jiant.module("main", function($, app) {
-                jiant.onUiBound(app, [], function($, app) {
+                jiant.onApp(app, [], function($, app) {
                     alert("Application started");
                 });
             });
@@ -46,11 +50,6 @@
     &lt;script src='js/jiant.js'>&lt;/script>
     &lt;script src='js/jiant_xl.js'>&lt;/script>
     &lt;script src='js/demoProject/demoProject.js'>&lt;/script>
-    &lt;script>
-        $(function() {
-            jiant.app(demoProject);
-        })
-    &lt;/script>
 </code></pre>
 Сюда же будем добавлять html реализации виджетов и шаблонов.
 
@@ -119,10 +118,9 @@
             jiant.xl.pagedContent
         </code></pre>
     </li>
-    <li>Если какие-то данные важны для разных частей приложения - добавляем <b>models</b> и заносим их туда</li>
+    <li>Если какие-то данные используются разными частями приложения - добавляем <b>models</b> и заносим их туда</li>
     <li>Если есть какая-то общая логика, не зависящая от специфики приложения - например создание и показ диалогов -
-    лучше вынести ее как <b>logic</b> либо <b>module</b> и впоследствии если что-то поменяется
-        - это сэкономит много сил и времени</li>
+    лучше вынести ее как отдельный <b>module</b></li>
 </ul>
 
 <h4>Разделяй и властвуй</h4>
