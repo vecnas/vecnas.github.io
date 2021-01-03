@@ -1,1 +1,230 @@
 <h4>Пример - todo-mvc реализация</h4>
+Реализуем эталонное приложение <a href="http://todomvc.com/">todo-mvc</a>.
+Требования и html, на базе которого создается приложение, доступны по <a href="http://todomvc.com/">данной ссылке</a>.
+Итоговая реализация на гитхабе - <a href="https://github.com/vecnas/todomvc-jiant-2020">https://github.com/vecnas/todomvc-jiant-2020</a>.
+Там же есть более старый вариант.
+
+<h4>Проектирование</h4>
+Как обычно, начинаем с создания файла описания приложения <b>app.js</b>:
+
+<pre><code class="js">
+const app = {
+
+    id: "todoJiantApp",
+    appPrefix: "",
+</code></pre>
+
+Согласно требованиям, приложение должно поддерживать хэш-навигацию. Добавляем секцию <b>states</b>,
+из требований же прямо берем список нужных состояний:
+
+<pre><code class="js">
+states: {
+
+    "": {},
+    active: {},
+    completed: {}
+
+},
+</code></pre>
+
+Очевидно для хранения todo объектов идеально подходит модель. Добавляем, набор полей опять же прямо описан в постановке задачи
+(позднее, в процессе разработки, выясняется что удобно добавить еще одну модель - <b>env</b>
+- для хранения остальных данных показываемых на интерфейсе, ее описание есть в исходном коде):
+
+<pre><code class="js">
+models: {
+    todo: {
+        jRepo: {
+            listByCompleted: function(val) {},
+            countByCompleted: function(val) {return this.listByCompleted(val).length}
+        },
+        title: function(val) {},
+        completed: function(val) {},
+        editing: function(val) {},
+        ui: function(val) {}
+    }
+}
+</code></pre>
+
+Есть требования на локализацию, следовательно, добавляем также <b>intl</b> секцию.
+Ввиду простоты задачи, сделаем один метод который прямо соответствует постановке. В более сложной ситуации
+мы бы создали json файл с переводами, как в <a href="#jDocs=,advanced,advanced_this_app,1,">данном примере</a>
+
+<pre><code class="js">
+logic: {
+    txt: {
+        url: "intl.json",
+        itemsLeft: function(cnt) {
+            return cnt === 1 ? "<strong>1</strong> item left" : ("<strong>" + cnt + "</strong> items left");
+        }
+    }
+},
+</code></pre>
+
+Остается определиться с виджетами и шаблонами.
+Для данного приложения сразу есть эталонный html, от которого отталкиваемся при проектировании виджетов и шаблонов, что значительно упрощает жизнь.
+<p></p>
+
+Судя по всему, шаблон нужен будет только один, его содержимое по большей части опять же просто продиктовано постановкой задачи:
+
+<pre><code class="js">
+templates: {
+    tmTodo: {
+        completed: cssFlag,
+        deleteCtl: ctl,
+        editCtl: ctl,
+        editing: cssFlag,
+        toggleStateCtl: ctl,
+        titleInput: input,
+        hiddenInEditMode: collection,
+        title: label
+    }
+}
+</code></pre>
+Реализацию берем из html кода, поставляемого с постановкой задачи.
+<p></p>
+
+Далее, записываем по тексту постановки и имеющемуся html коду виджеты. Сразу видно, что некоторые из них можно объединить,
+но в таком виде все максимально близко к постановке задачи и следовательно легче всего понять-спроектировать.
+
+<pre><code class="js">
+appView: {
+    filterCompleted: cssMarker
+},
+
+header: {
+    newTodoTitleInput: input
+},
+
+main: {
+    batchToggleStateCtl: ctl,
+    todoList: container
+},
+
+footer: {
+    activeCount: label,
+    clearCompletedCtl: ctl,
+
+    Ctl: ctl,
+    activeCtl: ctl,
+    completedCtl: ctl
+}
+</code></pre>
+Реализацию берем из html кода, поставляемого с постановкой задачи.
+<p></p>
+
+<h4>Модули</h4>
+Реализуем функционал шаг за шагом, по-модульно. Каждый модуль отвечает за свою небольшую часть задачи.
+Всего получилось 6 модулей, изложенных далее.
+
+<h4>Модуль states</h4>
+Данный модуль отвечает за хэш навигацию. Во-первых, настраиваем меню навигации
+
+<pre><code class="js">
+jiant.xl.nav(app, footer, "Ctl", "selected")();
+</code></pre>
+Здесь видно, что если мы сопоставим кнопки с суффиксом <b>Ctl</b> в названии состояниям, то получим стандартное меню навигации по состояниям приложения.
+<p></p>
+Добавляем в виджет <b>footer</b> контрол <b>Ctl</b>, для пустого состояния, и два других:
+<b>activeCtl</b>, <b>completedCtl</b> - для остальных состояний.
+<p></p>
+
+<h4>Модуль todoRenderer</h4>
+Модуль полностью состоит из функции customRenderer для шаблона <b>tmTodo</b> и строки в которой конфигурируется отображение модели todo на интерфейс:
+<pre><code class="js">
+jiant.xl.bindList(app.models.todo, app.views.main.todoList, app.templates.tmTodo, "ui", null, true)();
+</code></pre>
+Этот вызов означает: подписаться на изменения модели <b>todo</b>, отрисовывая ее объекты в контейнере <b>todoList</b> используя шаблон <b>tmTodo</b>.
+Сгенерированные элементы интерфейса сохраняются также в поле модели под названием <b>ui</b>.
+<p></p>
+В самой функции customRenderer настраивается взаимная связь объекта модели <b>todo</b>
+и элемента интерфейса <b>todoElem</b>, согласно постановке задачи. Например:
+<pre><code class="js">
+todoElem.deleteCtl.click(function() {
+    todo.remove();
+});
+
+todoElem.editCtl.dblclick(function() {
+    todo.editing(true);
+    todoElem.titleInput.val(todo.title());
+    todoElem.titleInput.focus();
+});
+</code></pre>
+По нажатию на <b>deleteCtl</b> объект удаляется из модели. По двойному клику на контрол редактирования
+- выставляется свойство <b>editing</b>, редактор обновляется текущим значением и получает фокус.
+
+<h4>Модуль addTodo</h4>
+Модуль отвечает за добавление новых <b>todo</b>. Все что он делает - после необходимых проверок ввода пользователя - добавляет объект в модель:
+<pre><code class="js">
+app.models.todo.jRepo.add({title: title, completed: false});
+</code></pre>
+
+<h4>Модуль persistence</h4>
+Модуль обеспечивает две основные функции:
+<ul>
+  <li>
+    На старте выполняет загрузку данных из local storage в модель <b>todo</b>, после чего
+  </li>
+  <li>Подписывается на любое изменение модели <b>todo</b> и сохраняет изменения в local storage
+<pre><code class="js">
+app.models.todo.on(persist);
+
+function persist() {
+  const todos = app.models.todo.jRepo.all();
+  ....
+</code></pre>
+  </li>
+</ul>
+Текущая реализация может быть упрощена до операций сразу над всей строкой сериализованного списка TODO
+(получаемого посредством вызова <b>jRepo.all().asMap()</b>),
+сейчас реализовано по-TODO-шное сохранение для возможных оптимизаций.
+
+<h4>Модуль footer</h4>
+Обеспечивает работу footer'a, описанную в постановке задачи. Подписывается на события моделей <b>todo</b> и <b>env</b>
+и синхронизирует состояние интерфейса в зависимости от их состояния: видимость элементов, счетчики. Пример кода:
+<pre><code class="js">
+app.views.footer.activeCount.customRenderer = function(env, elem, cnt) {
+    elem.html(app.logic.txt.itemsLeft(cnt));
+};
+
+function updateView() {
+    m.todo.jRepo.all().length > 0 ? app.views.footer.show() : app.views.footer.hide();
+}
+
+m.todo.on(function() {
+    m.env.activeCount(m.todo.jRepo.countByCompleted(false));
+    updateView();
+    syncVisibility();
+});
+
+app.views.footer.clearCompletedCtl.click(function() {
+    m.todo.jRepo.listByCompleted(true).remove();
+});
+</code></pre>
+Определяется локализованный отрисовщик для счетчика активных <b>todo</b>.
+Затем <b>updateView</b> прячет-показывает футер в зависимости от наличия <b>todo</b>.
+Затем подписываемся на изменения модели <b>todo</b>, для обновления счетчика и показа-прятания прочих элементов.
+По нажатию на кнопку очистки - запрашиваем из модели все завершенные <b>todo</b> и удаляем их методом коллекции.
+
+<h4>Модуль batch</h4>
+Обеспечивает массовые функции (такие как массовое выставление на todo объекты флага "завершен"). Для этого
+<ol>
+  <li>По клику на нужную кнопку - достает из модели все элементы и ставит на них "завершен" или "нет"
+<pre><code class="js">
+ctl.click(function() {
+  m.jRepo.all().completed(ctl.prop("checked"));
+});
+</code></pre>
+  </li>
+  <li>Подписывается на изменения модели <b>todo</b> и синхронизирует состояние и видимость необходимых элементов с ее состоянием.
+<pre><code class="js">
+const total = m.jRepo.all().length,
+    completed = m.jRepo.listByCompleted(true).length;
+total > 0 ? ctl.show() : ctl.hide();
+ctl.prop("checked", (total === completed) ? "checked" : null);
+</code></pre>
+  </li>
+</ol>
+
+<h4>Исходный код</h4>
+Итоговая реализация на гитхабе - <a href="https://github.com/vecnas/todomvc-jiant-2020">https://github.com/vecnas/todomvc-jiant-2020</a>.
