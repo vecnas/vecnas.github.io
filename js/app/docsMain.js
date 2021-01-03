@@ -1,9 +1,10 @@
 jiant.module("docsMain", function($, app) {
 
-  jiant.onUiBound(app, function($, app) {
+  jiant.onApp(app, function($, app) {
 
-    var topicCtls = {},
-        currentTopic,
+    const topicCtls = {};
+
+    let currentTopic,
         currentSubtopic;
 
     function setup() {
@@ -47,7 +48,7 @@ jiant.module("docsMain", function($, app) {
     }
 
     function addSubnavItem(label, elem, idx) {
-      var v = app.templates.subnav.parseTemplate({label: label});
+      const v = app.templates.subnav.parseTemplate({label: label});
       app.views.main.subnav.append(v);
       v.click(function() {
         app.states[""].go(undefined, undefined, idx, new Date().getTime());
@@ -55,14 +56,14 @@ jiant.module("docsMain", function($, app) {
     }
 
     $.each(app.topics, function(topic, content) {
-      var navItem = app.templates.nav.parseTemplate({label: topic});
+      const navItem = app.templates.nav.parseTemplate({label: topic});
       app.views.nav.append(navItem);
       navItem.ctl.click(function() {
         app.states[""].go(topic, topic + "0", 0);
       });
       topicCtls[topic] = navItem;
       $.each(content, function(sub, subcontent) {
-        var subnav = app.templates.nav.parseTemplate({label: sub});
+        const subnav = app.templates.nav.parseTemplate({label: sub});
         navItem.container.append(subnav);
         subnav.ctl.click(function() {
           app.states[""].go(topic, sub, 0);
