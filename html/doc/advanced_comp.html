@@ -1,1 +1,91 @@
 <h4>Использование компонентов</h4>
+Компонент это любой публично доступный (присутствующий в дереве приложения) шаблон.
+<p></p>
+На любой шаблон из секции <b>templates</b> можно сослаться используя тип <b>jiant.comp</b>
+
+<h4>API компонента</h4>
+В том случае когда нужен javascript API - необходимо воспользоваться объявлением функции <b>jiant.fn</b>.
+Как правило это проще сделать в рамках реализации поведения в коде, чем в объявлении
+<pre><code class="js">
+    templates: {
+        myComp: {
+            setValue: jiant.fn(function() {....});
+        }
+    }
+</code></pre>
+либо, проще,
+<pre><code class="js">
+    // module myComp
+    const myComp = app.templates.myComp = {};
+    myComp.setValue = jiant.fn(function() {....});
+</code></pre>
+
+<h4>Модуль для компонента</h4>
+Наиболее удобно объявлять компонент в модуле и целый модуль посвящать одному компоненту,
+как например <a href="#jDocs=,advanced,advanced_modules,7,">здесь</a>. Повторим этот код:
+<pre><code class="js">
+  jiant.module("zoomToggle", [], ($, app, jiant) => {
+
+  app.templates.zoomToggleTm = {
+      zoomIn: jiant.ctl,
+      zoomOut: jiant.ctl,
+      onChange: jiant.fn(function(cb) {this._zoom_cb = cb}),
+      impl: '&lt;b>&lt;div class="_zoomIn" style="display: none; cursor: pointer">&lt;i class="fa fa-search-plus" aria-hidden="true">' +
+          '&lt;/i>&lt;/div>&lt;div class="_zoomOut" style="cursor: pointer">&lt;i class="fa fa-search-minus" aria-hidden="true"></i>&lt;/div>&lt;/b>',
+      jInit: function() {
+          this.zoomIn.click(() => {
+              this.zoomIn.hide();
+              this.zoomOut.show();
+              change(false);
+          });
+
+          this.zoomOut.click(() => {
+              this.zoomOut.hide();
+              this.zoomIn.show();
+              change(true);
+          });
+
+          const change = (val) => {
+              this._zoom_cb && this._zoom_cb(val);
+          };
+      }
+  };
+
+});
+</code></pre>
+В таком случае подключаем модуль через секцию <b>modules</b>, либо через зависимости модуля при его объявлении.
+<p></p>
+Первое - если компонент используется в дереве приложения, второе - если в приватных объектах отдельного модуля.
+
+<h4>Компонентный рефакторинг</h4>
+В связи с деревообразной структурой передачи данных при вызове <b>propagate</b>, очень удобно разделять компоненты
+и выделять из них подчасти если возникает такая необходимость.
+Допустим, имеем некое определение пользователя на интерфейсе:
+<pre><code class="js">
+  templates: {
+      userTm: {
+          firstName: label,
+          lastName: label,
+          icon: img
+      }
+  }
+</code></pre>
+Теперь, хотим вынести <b>icon</b> в отдельный компонент, чтобы переиспользовать его в различных местах интерфейса, как иконку.
+<pre><code class="js">
+  templates: {
+      iconTm: {
+          icon: img
+      },
+      userTm: {
+          firstName: label,
+          lastName: label,
+          icon: jiant.comp("iconTm")
+      }
+  }
+</code></pre>
+И разделяем код отрисовки, что так же просто, как разделение определения.
+Если мы хотим использовать выделенный компонент в разных режимах - параметризуем его.
+<p></p>
+Подобный рефакторинг компонентов предельно прост и удобен.
+<p></p>
+Начальное появление компонента как правило происходит именно в такой ситуации, когда в существующем шаблоне хочется выделить часть для переиспользования где-то еще.
