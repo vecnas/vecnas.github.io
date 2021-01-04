@@ -1,1 +1,123 @@
 <h4>Использование модулей</h4>
+
+Модули - самое удобное и простое с чего можно начать использование jiant. Они позволяют организовать код удобным образом
+и управлять его загрузкой по необходимости, оптимизируя начальную загрузку. Также они помогают изоляции независимых частей приложения.
+
+<h4>Загрузка кода</h4>
+Все модули, определенные в секции <b>modules</b> грузятся сразу. В целом, можно туда просто  добавлять модули по мере
+появления нового функционала.
+<p></p>
+Другой вариант - подгружать новые модули используя <b>jiant.loadModule</b>, по необходимости.
+Можно также просто запустить эту отложенную загрузку сразу, чтобы она шла пока пользователь знакомится со стартовым интерфейсом.
+Но необходимо учитывать что часть функционала стартует отложенно.
+
+<h4>Может модуль, может нет</h4>
+Если код желательно использовать и в случае отсутствия jiant, можно объявить его например следующим образом:
+<pre><code class="js">
+  if (typeof jiant !== "undefined") {
+      jiant.module("timeline", function() {return Timeline});
+  } else if (!window.Timeline) {
+      window.Timeline = Timeline;
+  }
+</code></pre>
+Здесь модуль предоставляет некий функционал <b>Timeline</b>.
+
+<h4>Внешние библиотеки</h4>
+Модули удобно использовать для организации внешних библиотек. В одном файле собраны ссылки на css, js, а если необходимо - то и html содержимое.
+Например, модуль аналитики может грузиться по требованию только если пользователь захочет посмотреть на красивые графики и чарты.
+Вот например код отвечающий за подгрузку 3d библиотек, объявление модуля:
+<pre><code class="js">
+jiant.module("libs3d", {js: [
+    "https://cdnjs.cloudflare.com/ajax/libs/three.js/98/three.js",
+    "/resources/js/3d/Detector.js",
+    "/resources/js/3d/TrackballControls.js"
+]});
+</code></pre>
+
+И только при необходимости использования эти библиотеки подгружаются на страницу (включая и зависимые от них):
+<pre><code class="js">
+jiant.loadModule(app, ["libs3d", "lib3dGame",
+    {"shared": "positioner3d"},
+    {"app3d" : ["driver3", "camera3d", "modelsCreatures3d", "utils", "shaders", "visibleItems3d", "modelsArchitecture"]}],
+        function() {
+            app.models.env.uiInitialized(true);
+    });
+</code></pre>
+
+<h4>Модули и состояния</h4>
+Отложенную загрузку модулей максимально удобно привязывать к состояниям: грузить код, только когда приложение
+переходит в соответствующее состояние (показывает соответствующий экран)
+<pre><code class="js">
+  app.states.charts.start(function() {
+      showLoading();
+      jiant.loadModule(app, "chartsLibs", function() {
+          hideLoading();
+          .....
+      });
+  });
+</code></pre>
+При повторном попадании сюда же - проверка покажет что все модули уже загружены и выполнится сразу функция отрисовки графиков.
+
+<h4>Инкапсуляция кода</h4>
+В рамках модуля удобно осуществлять приватное связывание объектов, и оно будет использовано только данным модулем:
+<pre><code class="js">
+  jiant.module("someModule", function($, app) {
+      jiant.onApp(app, function() {
+          const myView = jiant.bindView(....;
+          const myModel = jiant.bindModel(....;
+          ...
+          myView.propagate(myModel....;
+      });
+  });
+</code></pre>
+Также весь код написанный внутри модуля естественным образом изолирован.
+
+<h4>API модуля</h4>
+Возвращаемое функцией <b>jiant.module</b> значение предоставляет другому коду внешнее API модуля. Например
+<pre><code class="js">
+  jiant.module("formatter", function($, app) {
+      return {
+          myFormatText: function(s) ....
+      }
+  });
+  ....
+  jiant.module("text, ["formatter"], function($, app, jiant, params, Formatter) {
+      const formattedText = Formatter.myFormatText(textToFormat);
+  });
+</code></pre>
+При этом может использоваться функционал связывания: виджеты, шаблоны и прочее.
+Но необходимо убедиться что эти функции будут вызываться уже в рамках <b>jiant.onApp</b>
+
+<h4>Модули объявления компонентов</h4>
+Модуль может не содержать исполняемого кода, а просто добавлять в определение приложения, например, компоненты:
+<pre><code class="js">
+  jiant.module("zoomToggle", [], ($, app, jiant) => {
+
+  app.templates.zoomToggleTm = {
+      zoomIn: jiant.ctl,
+      zoomOut: jiant.ctl,
+      onChange: jiant.fn(function(cb) {this._zoom_cb = cb}),
+      impl: '&lt;b>&lt;div class="_zoomIn" style="display: none; cursor: pointer">&lt;i class="fa fa-search-plus" aria-hidden="true">' +
+          '&lt;/i>&lt;/div>&lt;div class="_zoomOut" style="cursor: pointer">&lt;i class="fa fa-search-minus" aria-hidden="true"></i>&lt;/div>&lt;/b>',
+      jInit: function() {
+          this.zoomIn.click(() => {
+              this.zoomIn.hide();
+              this.zoomOut.show();
+              change(false);
+          });
+
+          this.zoomOut.click(() => {
+              this.zoomOut.hide();
+              this.zoomIn.show();
+              change(true);
+          });
+
+          const change = (val) => {
+              this._zoom_cb && this._zoom_cb(val);
+          };
+      }
+  };
+
+});
+</code></pre>
+Этот модуль добавляет в шаблоны компонент <b>zoomToggleTm</b>, который затем может использоваться другим кодом.
