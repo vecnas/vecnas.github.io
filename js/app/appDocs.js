@@ -60,14 +60,16 @@ $(function() {
         basics_binding: {},
         basics_lifecycle: {},
         basics_private: {},
+        basics_new_q: {},
         basics_app_params: {},
-        basic_recipes: {}
+        basics_recipes: {}
       },
 
       advanced: {
         advanced0: {},
         advanced_modules: {},
         advanced_comp: {},
+        advanced_xl: {},
         // advanced_refactoring: {},
         advanced_internal: {},
         advanced_this_app: {},
