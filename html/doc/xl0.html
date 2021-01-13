@@ -279,6 +279,11 @@
     <li><b>mapping</b> (опционально) - задает маппинг имен объектов к именам элементов шаблона</li>
 </ul>
 Представляет собой упрощенный вариант <a href="#jDocs=,xl,xl0,7,">Представления модели списком</a>
+<pre><code class="js">
+    jiant.xl.renderList([{class: "cls1", name: "today"}, {class: "cls2", name: "tomorrow"}],
+        app.views.dashboard.dataSet, app.templates.dataButton)();
+</code></pre>
+
 
 <h4>Фильтруемые данные</h4>
 <pre><code class="js">
@@ -646,7 +651,9 @@
     <li><b>arrElems</b> (опционально) - набор элементов интерфейса, которые должны участвовать в выборе</li>
     <li><b>arrVals</b> (опционально) - набор сопоставленных значений, возможно также элементов интерфейса</li>
     <li><b>cb</b> (опционально) - функция отрабатывающая при смене значения, по умолчанию
-        - показывает выбранное значение и прячет предыдущее. Таким образом, эмулируется поведение таб панели</li>
+        - показывает выбранное значение и прячет предыдущее. Таким образом, эмулируется поведение таб панели.
+    Принимает два параметра - <b>cb(elem, val)</b> - элемент и значение (элементы соответствующих массивов
+        <b>arrElems</b> и <b>arrVals</b>)</li>
     <li><b>selectedIdx</b> (опционально) - выбранное по умолчанию значение </li>
     <li><b>selectClass</b> (опционально) - CSS класс, который навешивается на выбранный элемент (не значение)</li>
 </ul>
@@ -677,7 +684,7 @@
     };
     ...
     var view = app.views.main;
-    var select = jiant.xl.pseudoSelect(view.tabCtls, view.tabPanels, null, 0, "active);
+    var select = jiant.xl.pseudoSelect(view.tabCtls, view.tabPanels, null, 0, "active");
     select.add(view.hideAll, view.hideAll, function() { view.tabPanels.hide() });
 </code></pre>
 

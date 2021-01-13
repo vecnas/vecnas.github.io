@@ -17,7 +17,7 @@
   "basics0": "Введение",
   "basics_concepts": "Концепции",
   "basics_app_params": "Настройки приложения",
-  "basic_recipes": "Рецепты",
+  "basics_recipes": "Рецепты",
   "basics_binding": "Связывание",
   "basics_lifecycle": "Жизненный цикл",
   "basics_private": "Приватные и публичные",
@@ -52,5 +52,6 @@
   "advanced_this_app": "Пример - приложение документации",
   "advanced_todo_app": "Пример - приложение todo-mvc",
   "advanced_troubleshooting": "Анализ ошибок",
+  "advanced_xl": "Использование XL",
   "advanced_crossdomain": "Кроссдомен"
 }

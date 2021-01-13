@@ -1,0 +1,26 @@
+<h4>Использование XL</h4>
+
+XL - eXtra Logic - предоставляет готовые алгоритмические решения некоторых наиболее общих задач.
+Детальная документация по XL <a href="#jDocs=,xl,xl0,0,">здесь</a>.
+
+<h4>Список с выбором</h4>
+Задача - отрисовать набор кнопок, одна из которых будет выбираться (поведение аналогичное элементу radio).
+<pre><code class="js">
+&lt;div class="app-actions _dataSet">
+  &lt;button type="button" class="btn active">Today&lt;/button>
+  &lt;button type="button" class="btn">Yesterday&lt;/button>
+  &lt;button type="button" class="btn">7 days&lt;/button>
+  &lt;button type="button" class="btn">15 days&lt;/button>
+&lt;/div>
+</code></pre>
+Задача решается вызовами двух функций XL: <a href="#jDocs=,xl,xl0,8,">Представление объектов списком</a>
+и <a href="#jDocs=,xl,xl0,16,">Псевдо селектор</a>.
+Первая отрисует заданный список в контейнере, вторая добавит к нему необходимое поведение, например
+(при соответствующем именовании виджета и его элементов):
+<pre><code class="js">
+  const select = jiant.xl.pseudoSelect([], [], myCb, 0, "active"]);
+  jiant.xl.renderList([{class: 'btn', name: "Today"}, ...], app.v.mainDashboard.dataSet, app.t.dataButton)();
+</code></pre>
+Элементы в select можно добавлять разными способами, в зависимости от вкуса - по мере отрисовки <b>renderList</b>,
+используя коллбэк (4й аргумент, perItemCb), либо после отрисовки динамически достать все необходимые элементы.
+Первый кажется более производительным.
