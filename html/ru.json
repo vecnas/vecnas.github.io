@@ -47,6 +47,7 @@
   "advanced_comp": "Использование компонентов",
   "advanced_refactoring": "Примеры рефакторинга",
   "advanced_devmode": "Режим разработки",
+  "advanced_cache": "Кэширование",
   "advanced_faststart": "Быстрый старт",
   "advanced_project": "Проектирование",
   "advanced_internal": "Внутренняя архитектура",

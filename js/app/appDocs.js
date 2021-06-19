@@ -77,6 +77,7 @@ $(function() {
         advanced_troubleshooting: {},
         advanced_crossdomain: {},
         advanced_devmode: {},
+        advanced_cache: {},
         advanced_faststart: {},
         advanced_project: {}
       },
