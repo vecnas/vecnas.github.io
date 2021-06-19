@@ -4,6 +4,8 @@ $(function() {
 
     id: "jDocs",
 
+    cacheInStorage: 1,
+
     appPrefix: "_",
 
     modulesPrefix: "js/app/",
