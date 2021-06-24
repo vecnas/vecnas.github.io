@@ -241,12 +241,27 @@
 Пример:
 
 <pre><code class="js">
+    views: {
+        userList: {
+            container: jiant.container
+        }
+    },
+    templates: {
+        userTm: {
+            name: jiant.label,
+            imageUrl: jiant.imgBg
+        }
+    },
     models: {
         user: {
-            add: function(list) {},
-            remove: function(obj) {},
+            jRepo: {
+                add: function(list) {},
+                remove: function(obj) {},
+            }
 
             id: function(id) {},
+            name: function(id) {},
+            imageUrl: function(id) {},
             view: function(view) {}
         }
     }
