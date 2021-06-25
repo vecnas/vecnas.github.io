@@ -4,7 +4,7 @@ $(function() {
 
     id: "jDocs",
 
-    cacheInStorage: 1,
+    cacheInStorage: 2,
 
     appPrefix: "_",
 
