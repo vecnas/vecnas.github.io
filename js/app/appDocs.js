@@ -4,13 +4,15 @@ $(function() {
 
     id: "jDocs",
 
-    cacheInStorage: 2,
+    cacheInStorage: 3,
 
     appPrefix: "_",
 
     modulesPrefix: "js/app/",
 
     modules: ["docsMain"],
+
+    xl: {},
 
     logic: {
       intl: {
