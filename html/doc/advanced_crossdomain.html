@@ -1,9 +1,6 @@
 <h4>Кроссдомен</h4>
 
-Работа кроссдоменной функциональности требует поддержки со стороны сервера.
-
-Также можно добавить на страницу скрипт <b>jquery.xdomainajax.js</b> (есть на гитхабе рядом с jiant.js,
-нужен только если используется кроссдоменная загрузка html содержащего виджеты и шаблоны)
+Работа кроссдоменной функциональности требует поддержки со стороны сервера (CORS).
 <p></p>
 Предположим приложение 1 расположено на app1.com и приложение 2 на app2.com  и у вас есть контроль надо обоими доменами.
 Ваше jiant приложение расположено на app1 и вы хотите использовать его как часть app2.
@@ -13,12 +10,12 @@
 <p></p>
 В этом случае вам нужно решить вопросы кроссдоменной защиты. Вы должны сконфигурировать app1 разрешать запросы с app2.
 Серверная часть за пределами этой статьи, но ниже есть примеры кода.
-Нужно сделать 2 вещи: установить правильные заголовки ответов и выдавать данные в формате jsonp.
+Нужно выставить корректные CORS заголовки (Access-Control-Allow-Origin и, при необходимости, Credentials).
 
 <h4>Замечание</h4>
 Технологии развиваются, для клиента появляются новые защитные механизмы, которым необходимо соответствовать.
 Также кроссдомен в спринге теперь настраивается проще, соответствующий фильтр представлен в стандартной версии.
-До последнего времени (конец 2020) тем не менее описанные механизмы продолжают работать успешно.
+Современные браузеры используют стандартный CORS как основной механизм кроссдоменного доступа.
 
 <h4>Клиентский код</h4>
 
@@ -58,19 +55,16 @@
 
 <pre><code class="js">
     {
-        contentType:"application/json",
-        dataType:'jsonp',
-        xhrFields: {
-            withCredentials: true
-        },
-        crossDomain: true
+        crossDomain: true,
+        // optional:
+        xhrFields: { withCredentials: true }
     }
 </code></pre>
 
 Затем jiant загружает HTML код, добавляет его в документ и после этого выполняет связывание приложения.
 Теперь, если <b>AJAX_PREFIX="http://app1.com/"</b>, все аякс запросы будут отправлены на app1.com
-и результаты будут получены в формате jsonp (с соответствующей серверной поддержкой).
-Этот механизм в целом поддерживает также кроссдоменную авторизацию и сессию.
+и результаты будут получены через стандартный CORS (с соответствующей серверной поддержкой).
+Этот механизм поддерживает также кроссдоменную авторизацию и сессию при включенном withCredentials.
 
 <h4>Пример серверного кода</h4>
 
@@ -98,120 +92,4 @@
 </code></pre>
 - замените * именем своего домена.
 <p></p>
-Пример серверного компонента, который генерирует jsonp (java Spring http message converter):
-
-<pre><code class="java">
-    public class JsonpHttpMessageConverter extends MappingJacksonHttpMessageConverter {
-
-        @Override
-        protected void writeInternal(Object object, HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
-            if (object != null && object instanceof JsonpWrapper) {
-                JsonpWrapper wrapper = (JsonpWrapper) object;
-                String callback = wrapper.getCallback();
-                if (callback != null) {
-                    outputMessage.getBody().write(callback.getBytes());
-                    outputMessage.getBody().write('(');
-                    super.writeInternal(wrapper.getData(), outputMessage);
-                    outputMessage.getBody().write(')');
-                } else {
-                    super.writeInternal(wrapper.getData(), outputMessage);
-                }
-            } else {
-                super.writeInternal(object, outputMessage);
-            }
-        }
-
-    }
-</code></pre>
-Другой вариант для генерации jsonp на сервере - фильтр (java Spring)
-
-Взято здесь:
-<a href="http://jpgmr.wordpress.com/2010/07/28/tutorial-implementing-a-servlet-filter-for-jsonp-callback-with-springs-delegatingfilterproxy/">
-    http://jpgmr.wordpress.com/2010/07/28/tutorial-implementing-a-servlet-filter-for-jsonp-callback-with-springs-delegatingfilterproxy/
-</a>
-
-<pre><code class="java">
-    public class JsonpFilter extends OncePerRequestFilter {
-
-        @Override
-        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-            Map&lt;String, String[]> params = request.getParameterMap();
-            if (params.containsKey("callback")) {
-                OutputStream out = response.getOutputStream();
-                GenericResponseWrapper wrapper = new GenericResponseWrapper(response);
-                filterChain.doFilter(request, wrapper);
-                out.write((params.get("callback")[0] + "(").getBytes());
-                out.write(wrapper.getData());
-                out.write(");".getBytes());
-                wrapper.setContentType("text/javascript;charset=UTF-8");
-                out.close();
-            } else {
-                filterChain.doFilter(request, response);
-            }
-        }
-
-        private static class GenericResponseWrapper extends HttpServletResponseWrapper {
-            private ByteArrayOutputStream output;
-            private int contentLength;
-            private String contentType;
-
-            public GenericResponseWrapper(HttpServletResponse response) {
-                super(response);
-                output = new ByteArrayOutputStream();
-            }
-
-            public byte[] getData() {
-                return output.toByteArray();
-            }
-
-            public ServletOutputStream getOutputStream() {
-                return new FilterServletOutputStream(output);
-            }
-
-            public PrintWriter getWriter() {
-                return new PrintWriter(getOutputStream(), true);
-            }
-
-            public void setContentLength(int length) {
-                this.contentLength = length;
-                super.setContentLength(length);
-            }
-
-            public int getContentLength() {
-                return contentLength;
-            }
-
-            public void setContentType(String type) {
-                this.contentType = type;
-                super.setContentType(type);
-            }
-
-            public String getContentType() {
-                return contentType;
-            }
-
-        }
-
-        private static class FilterServletOutputStream extends ServletOutputStream {
-
-            private DataOutputStream stream;
-
-            public FilterServletOutputStream(OutputStream output) {
-                stream = new DataOutputStream(output);
-            }
-
-            public void write(int b) throws IOException {
-                stream.write(b);
-            }
-
-            public void write(byte[] b) throws IOException {
-                stream.write(b);
-            }
-
-            public void write(byte[] b, int off, int len) throws IOException {
-                stream.write(b, off, len);
-            }
-        }
-
-    }
-</code></pre>
+JSONP больше не требуется для Jiant, используйте стандартный CORS.
