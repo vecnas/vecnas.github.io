@@ -1,4 +1,4 @@
-jiant.module("docsMain", function($, app) {
+jiant.module("docsMain", function({$, app, jiant}) {
 
   jiant.onApp(app, function($, app) {
 
