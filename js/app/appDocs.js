@@ -1,19 +1,12 @@
 $(function() {
   jiant.DEV_MODE = true;
-  var app = {
-
+  jiant.app((jiant) => ({
     id: "jDocs",
-
     cacheInStorage: 3,
-
     appPrefix: "_",
-
     modulesPrefix: "js/app/",
-
     modules: ["docsMain"],
-
     xl: {},
-
     logic: {
       intl: {
         i18n: 1,
@@ -23,7 +16,6 @@ $(function() {
         loadError: function() {}
       }
     },
-
     states: {
       "": {
         jDefaults: {
@@ -34,7 +26,6 @@ $(function() {
         end: function(cb) {}
       }
     },
-
     views: {
       nav: {},
       main: {
@@ -42,7 +33,6 @@ $(function() {
         subnav: jiant.container
       }
     },
-
     templates: {
       nav: {
         impl: "<b><li><a class='_label _ctl'></a><ul class='_container nav navbar-nav'></ul></li></b>",
@@ -55,9 +45,7 @@ $(function() {
         label: jiant.label
       }
     },
-
     topics: {
-
       basics: {
         basics0: {},
         basics_concepts: {},
@@ -68,7 +56,6 @@ $(function() {
         basics_app_params: {},
         basics_recipes: {}
       },
-
       advanced: {
         advanced0: {},
         advanced_modules: {},
@@ -85,39 +72,31 @@ $(function() {
         advanced_faststart: {},
         advanced_project: {}
       },
-
       views: {
         views0: {},
         templates: {},
         viewsElems: {},
         comp0: {}
       },
-
       models: {
         models0: {}
       },
-
       modules: {
         modules0: {},
         modules_libs: {}
       },
-
       ajax: {
         ajax0: {}
       },
-
       events: {
         events0: {}
       },
-
       semaphores: {
         semaphores0: {}
       },
-
       states: {
         states0: {}
       },
-
       logics: {
         logics0: {}
       },
@@ -132,7 +111,5 @@ $(function() {
         xl0: {}
       }
     }
-
-  };
-  jiant.app(() => app);
+  }));
 });

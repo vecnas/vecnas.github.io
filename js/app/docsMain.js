@@ -1,6 +1,6 @@
 jiant.module("docsMain", function({$, app, jiant}) {
 
-  jiant.onApp(app, function($, app) {
+  jiant.onApp("jDocs", function($, app) {
 
     const topicCtls = {};
 
