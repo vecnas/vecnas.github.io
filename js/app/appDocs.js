@@ -134,5 +134,5 @@ $(function() {
     }
 
   };
-  jiant.bindUi(app);
+  jiant.app(() => app);
 });
