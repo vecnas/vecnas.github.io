@@ -118,17 +118,15 @@ Jiant.Ajax обеспечивает интерфейс для работы с с
 </ul>
 
 <h4>Promises</h4>
-Аякс функции jiant поддерживают promises за счет того что после вызова возвращают jQuery обработчики.
+Аякс функции jiant возвращают нативные Promise.
 Например,
 <pre><code class="js">
-  $.when(
+  Promise.all([
     app.ajax.pro0("a"),
     app.ajax.pro1("b")
-  ).then(
-    function(aa, bb) {
-      jiant.logInfo(arguments);
-    }
-  );
+  ]).then(function(results) {
+    jiant.logInfo(results);
+  });
 </code></pre>
 
 
@@ -339,15 +337,14 @@ jiant.AJAX_SUFFIX = ".asp";</code></pre>
 
 <h4>Детали реализации</h4>
 
-Для каждой функции генерируется следующий аякс обработчик:
+Для каждой функции генерируется следующий обработчик на базе fetch:
 
-<pre><code class="js">$.ajax(url, {data: callData, traditional: true ...</code></pre>
+<pre><code class="js">fetch(url, {method, headers, body, mode, credentials ...</code></pre>
 
-Любые вызовы <b>jQuery ajaxSetup</b> влияют на выполнение аяксовых вызовов.
-Например, конфигурация для кроссдомена или выполнение запросов используя POST а не GET.
+Настройки управляются через <b>ajaxPrefix</b>, <b>ajaxSuffix</b>, <b>crossDomain</b>, <b>withCredentials</b>.
+Вызовы <b>jQuery ajaxSetup</b> больше не влияют на выполнение аяксовых вызовов.
 <p></p>
 Параметр <b>antiCache3721=current time</b> добавляется к каждому вызову во избежание кэширования, если используется GET
 <p></p>
 Для форм - <b>submitForm</b> может использоваться чтобы отослать форму на сервер.
 Этот метод также использует текущие настройки <b>ajaxPrefix</b>, <b>ajaxSuffix</b>, <b>crossDomain</b>.
-
