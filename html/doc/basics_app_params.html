@@ -100,11 +100,11 @@ Jiant переменная определения приложения може�
 Передайте перменную определения приложения как первый параметр в функцию onUiBound:
 
 <pre><code class="js">
-    jiant.onApp(todomvcJiant, function($, app) {
+    jiant.onApp(todomvcJiant, function(app) {
 </code></pre>
 
 или идентификатор, если нет ссылки на переменную
 
 <pre><code class="js">
-    jiant.onApp("todomvc-jiant", function($, app) {
+    jiant.onApp("todomvc-jiant", function(app) {
 </code></pre>

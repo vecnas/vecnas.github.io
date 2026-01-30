@@ -62,7 +62,7 @@ jiant.loadModule(app, ["libs3d", "lib3dGame",
 <h4>Инкапсуляция кода</h4>
 В рамках модуля удобно осуществлять приватное связывание объектов, и оно будет использовано только данным модулем:
 <pre><code class="js">
-  jiant.module("someModule", function($, app) {
+  jiant.module("someModule", function(app) {
       jiant.onApp(app, function() {
           const myView = jiant.bindView(....;
           const myModel = jiant.bindModel(....;
@@ -76,13 +76,13 @@ jiant.loadModule(app, ["libs3d", "lib3dGame",
 <h4>API модуля</h4>
 Возвращаемое функцией <b>jiant.module</b> значение предоставляет другому коду внешнее API модуля. Например
 <pre><code class="js">
-  jiant.module("formatter", function($, app) {
+  jiant.module("formatter", function(app) {
       return {
           myFormatText: function(s) ....
       }
   });
   ....
-  jiant.module("text, ["formatter"], function($, app, jiant, params, Formatter) {
+  jiant.module("text, ["formatter"], function(app, jiant, params, Formatter) {
       const formattedText = Formatter.myFormatText(textToFormat);
   });
 </code></pre>

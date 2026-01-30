@@ -8,7 +8,7 @@ Jiant разбит на модули. Базовый функционал сод
 В зависимости от содержимого переменной определения приложения, остальные функции догружаются как модули.
 Например, если присутствует секция <b>models</b>, грузится модуль <b>jiant-models</b>
 <pre><code class="js">
-jiant.module("jiant-models", ["jiant-util"], function($, app, jiant, params, Util) {
+jiant.module("jiant-models", ["jiant-util"], function(app, jiant, params, Util) {
 
   this.singleton();
 

@@ -98,7 +98,7 @@
       }
       jiant.app(app);
       .....
-      jiant.onApp(app, function($, app) {
+      jiant.onApp(app, function(app) {
           app.ajax.getUser(1, function(user) {
               user.name = "New name";
               app.ajax.saveUser(user, function() {
@@ -220,8 +220,8 @@
     modules: ["demoMain"]
 
     // файл demoMain.js
-    jiant.module("demoMain", function($, app) {
-        jiant.onApp(app, function($, app) {
+    jiant.module("demoMain", function(app) {
+        jiant.onApp(app, function(app) {
             app.semaphores.time4search.on(function() {
                 jiant.loadModule(app, "searchEngine");
             });
@@ -229,7 +229,7 @@
     });
 
     // файл searchEngine.js
-    jiant.module("searchEngine", ["googleMaps"], function($, app) ....
+    jiant.module("searchEngine", ["googleMaps"], function(app) ....
 
     // файл googleMaps.js, либо прямо в любом имеющемся файле
     jiant.module("googleMaps", {

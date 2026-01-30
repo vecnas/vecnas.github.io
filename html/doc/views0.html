@@ -438,7 +438,7 @@ jiant.registerCustomRenderer("progress", function(obj, elem, val, isUpdate, view
         email: jiant.input,
         name: jiant.label
     };
-    jiant.onApp("myApp", function($, app) {
+    jiant.onApp("myApp", function(app) {
         jiant.bindView(app, "myView", view, $("_myView"));
     });
 </code></pre>

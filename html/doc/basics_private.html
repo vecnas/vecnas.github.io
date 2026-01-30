@@ -21,7 +21,7 @@ Jiant позволяет создавать публично доступные 
 Данные объекты не объявляются как часть файла приложения, а создаются посредством вызова функций jiant.bindXXX (см. далее для деталей).
 Например, в рамках некоего модуля:
 <pre><code class="js">
-  jiant.module("myModule", function($, app, jiant) {
+  jiant.module("myModule", function(app, jiant) {
       jiant.onApp(app, function() {
           const myView = jiant.bindView(app, "myView", {label: jiant.label, button: jiant.ctl});
           myView.button.click(function() {...});
@@ -76,7 +76,7 @@ Jiant позволяет создавать публично доступные 
         email: jiant.input,
         name: jiant.label
     };
-    jiant.onApp("myApp", function($, app) {
+    jiant.onApp("myApp", function(app) {
         const boundView = jiant.bindView(app, "myView", view);
     });
 </code></pre>
@@ -172,7 +172,7 @@ Jiant позволяет создавать публично доступные 
     <td>Реализует переданное дерево объектов <b>tree</b> согласно настройкам переданного приложения <b>appRoot</b>.
       Данный метод необходимо вызывать только после связывания приложения.
 <pre><code class="js">
-    jiant.module("tree", function($, app) {
+    jiant.module("tree", function(app) {
         jiant.onApp(app, function() {
             const tree = jiant.bindTree(app, {
                 templates: {

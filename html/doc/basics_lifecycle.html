@@ -22,7 +22,7 @@
     Вызываются все объявленные через <b>jiant.module()</b> модули, в порядке объявленных зависимостей и порядка загрузки.
     На этой стадии отдельные модули могут добавлять в приложение требуемые для них виджеты,
     модели и так далее.
-    <pre><code class="js">jiant.module("someModule", function($, app) {
+    <pre><code class="js">jiant.module("someModule", function(app) {
     app.models.someData = {.....};
     app.views.someView = {.....};
 });
@@ -32,7 +32,7 @@
     Начиная с этого момента изменения абстрактной спецификации приложения не оказывает влияния на результат связывания.
     На этой стадии реализуются все объявленные элементы приложения и ищется HTML реализация виджетов и шаблонов после чего
     выполняются все зарегистрированные коллбэки <b>jiant.onApp</b>. Расширим предыдущий пример
-    <pre><code class="js">jiant.module("someModule", function($, app) {
+    <pre><code class="js">jiant.module("someModule", function(app) {
     var dataModel = app.models.someData = {.....};
     var view = app.views.someView = {.....};
     jiant.onApp(app, function() {
@@ -44,7 +44,7 @@
   </li>
   <li><b>jiant.app(app), связывание, зависимости</b> - коллбэки <b>jiant.onApp</b> выполняются
     в порядке объявленных зависимостей от логик. Например, данный код выполнится когда будет доступна и реализована логика <b>baseLogic</b>:
-    <pre><code class="js">jiant.onApp(app, ["baseLogic"], function($, app) {
+    <pre><code class="js">jiant.onApp(app, ["baseLogic"], function(app) {
         view.propagate(dataModel);
         dataModel.....
     });

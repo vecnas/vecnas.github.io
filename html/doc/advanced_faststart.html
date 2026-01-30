@@ -70,9 +70,9 @@
 <p><b>hello.js</b></p>
 модуль, выполняющий работу с приложением
 <pre><code class="js">
-  jiant.module("hello", function($, app) { // объявляем модуль с именем, совпадающим с именем файла
+  jiant.module("hello", function(app) { // объявляем модуль с именем, совпадающим с именем файла
 
-    jiant.onApp(app, function($, app) { // на связывание приложения регистрируем следующую функциональность
+    jiant.onApp(app, function(app) { // на связывание приложения регистрируем следующую функциональность
       const ask = app.views.ask,
       		greet = app.views.greet;
     	ask.propagate(app.models.user, true, true, {nameInput: "name"}); // привязываем вьюшку к модели, с обновлением в обе стороны
@@ -171,8 +171,8 @@
       Реализуем логику работы в отдельных модулях, создаем модуль в файле с таким же именем
       и добавляем его в список модулей приложения:
         <pre><code class="js">
-          jiant.module("myModule", function($, app) {
-            jiant.onApp(app, [], function($, app) {
+          jiant.module("myModule", function(app) {
+            jiant.onApp(app, [], function(app) {
                 const main = app.views.mainLayoutView,
                 menu = app.views.mainMenuView,
                 tmMenuItem = app.templates.tmMenuItem;

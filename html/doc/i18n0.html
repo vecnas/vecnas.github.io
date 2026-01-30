@@ -21,7 +21,7 @@ Jiant предоставляет несложный интерфейс для р
 
 <pre><code class="js">
 
-  jiant.onApp(app, ["intl"], function($, app) {
+  jiant.onApp(app, ["intl"], function(app) {
       const localMessage = app.logic.intl.t("key");
       alert(localMessage);
   });

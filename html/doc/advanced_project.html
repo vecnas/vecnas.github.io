@@ -34,8 +34,8 @@
     </li>
     <li> <b>main.js</b> пока что содержит только пустой модуль:
         <pre><code class="js">
-            jiant.module("main", function($, app) {
-                jiant.onApp(app, [], function($, app) {
+            jiant.module("main", function(app) {
+                jiant.onApp(app, [], function(app) {
                     alert("Application started");
                 });
             });

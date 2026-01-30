@@ -1,6 +1,7 @@
-jiant.module("docsMain", function({$, app, jiant}) {
+jiant.module("docsMain", function({app, jiant}) {
+  const $ = window.jQuery;
 
-  jiant.onApp("jDocs", function($, app) {
+  jiant.onApp("jDocs", function(app) {
 
     const topicCtls = {};
 

@@ -33,7 +33,7 @@
 <ul>
   <li>Обращение к объекту происходит за пределами <b>jiant.onApp</b>. В этом случае нужно перенести его в коллбэк данного метода
 <pre><code class="js">
-jiant.module("myModule", function($, app) {
+jiant.module("myModule", function(app) {
     <strike>app.models.user.firstName();</strike>
     jiant.onApp(app, function() {
         <b>app.models.user.firstName();</b>
@@ -44,7 +44,7 @@ jiant.module("myModule", function($, app) {
   <li>Модуль загружен посредством <b>jiant.loadModule</b>. В этом случае нужно выполнить связывание объектов, например
     <b>jiant.bindModel</b>.
     <pre><code class="js">
-jiant.module("myModule", function($, app) {
+jiant.module("myModule", function(app) {
     jiant.onApp(app, function() {
         <strike>app.models.user.firstName();</strike>
         <b>const model = jiant.bindModel("user", {...});</b>

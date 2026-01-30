@@ -131,11 +131,10 @@ Jiant также предоставляет несложный механизм 
 <pre><code class="js">
   jiant.module("camera3d", [
       {"../shared": ["queue"]}
-  ], function($, app, jiant, params, Queue) {
+  ], function(app, jiant, params, Queue) {
   .....
   jiant.module("driver3",
-      ["gridRender", "visibleItems3d", "utils"],
-      function($, app, jiant, params, gridRender, visibleItems3d, utils) {
+      ["gridRender", "visibleItems3d", "utils"], function(app, jiant, params, gridRender, visibleItems3d, utils) {
   .....
 </code></pre>
 Если модуль с одним именем объявлен в зависимостях и в спецификации приложения, берутся настройки из спецификации.

@@ -28,7 +28,7 @@
 Теперь, если какой-то код реализует данную логику, он выполняет этот метод, передавая объект реализации:
 
 <pre><code class="js">
-    jiant.onApp(app, function($, app) {
+    jiant.onApp(app, function(app) {
         app.logic.verifier.implement({
             checkField: function(field) {
                 // собственно реализация
@@ -38,7 +38,7 @@
 </code></pre>
 Также можно вызвать метод <b>jiant.implement</b>
 <pre><code class="js">
-    jiant.onApp(app, function($, app) {
+    jiant.onApp(app, function(app) {
         jiant.implement(app.logic.verifier, {
             checkField: function(field) {
                 // собственно реализация
@@ -61,7 +61,7 @@
 во время вызова <b>onUiBound()</b>:
 
 <pre><code class="js">
-    jiant.onApp(app, ["verifier"], function($, app) {});
+    jiant.onApp(app, ["verifier"], function(app) {});
 </code></pre>
 
 И этот код исполнится только после того как логика <b>verifier</b> будет реализована.
@@ -124,10 +124,10 @@ jiant.declare("googleConversion", "http://www.googleadservices.com/pagead/conver
 
 jiant.app({id:"id"});
 
-jiant.onApp("id", ["extLib", "extLibLocal", "extLibLocal2", "googleConversion"], function($, app) {
+jiant.onApp("id", ["extLib", "extLibLocal", "extLibLocal2", "googleConversion"], function(app) {
     alert("loaded extLibExternal");
     jiant.app({id:"id2"});
-    jiant.onApp("id2", ["extLib", "extLibLocal", "extLibLocal2", "googleConversion"], function($, app) {
+    jiant.onApp("id2", ["extLib", "extLibLocal", "extLibLocal2", "googleConversion"], function(app) {
         alert("loaded extLibAInternal");
     });
 });
