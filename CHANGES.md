@@ -1,7 +1,7 @@
 # Changes
 
 ## 2026-01-29
-- Update Jiant CDN to commit 597e445 (latest Jiant).
+- Update Jiant CDN to commit 0b0bd78 (latest Jiant).
 - Update ajax docs to reflect native fetch/Promise implementation.
 
 ## 2026-01-28
