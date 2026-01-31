@@ -29,6 +29,7 @@ jiant.module("docsMain", function({app, jiant}) {
     }
 
     function showTopic(topic, subtopic, section) {
+      const injectTo = dom.first(app.views.main.container);
       jiant.loadModule(app, subtopic, function() {
         const containerEl = dom.first(app.views.main.container) || document;
         if (containerEl.querySelectorAll) {
@@ -37,7 +38,7 @@ jiant.module("docsMain", function({app, jiant}) {
           });
         }
         updateSubnav(section);
-      }, true, app.views.main.container);
+      }, true, injectTo);
     }
 
     function updateSubnav(section) {
