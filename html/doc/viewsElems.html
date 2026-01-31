@@ -366,13 +366,13 @@ javascript:
 
 
 <h4>jiant.tabs</h4>
-вызывает функцию <b>tabs()</b> на элемент, если она доступна (например, jqueryui есть на странице)
+вызывает функцию <b>tabs()</b> на элементе, если она доступна (например, если подключена библиотека, добавляющая tabs() в DOM элемент)
 Добавляет элементу функцию <b>refreshTabs()</b>, синоним для вызова <b>uiElem.tabs("refresh");</b>
 
 
 <h4>jiant.lookup</h4>
 Игнорирует стартовую проверку существования элемента. <b> Результат связывания является функцией, в отличие от других элементов.</b>
-Осуществляет поиск элемента во время вызова. Полезно для динамического поиска элементов виджета. Работает как вызов функции jQuery <b>find</b>.
+Осуществляет поиск элемента во время вызова. Полезно для динамического поиска элементов виджета. Работает как вызов <b>querySelectorAll</b> от корня виджета.
 Во время связывания пишет в консоль, если включен режим разработки:
 <pre><code class="js">
     loookup element, no checks/bindings: elemName
@@ -490,7 +490,7 @@ javascript:
 
     jiant.app(myApp);
 
-    myApp.views.list.pager.onValueChange(function(event, pageNum) { // стандартный jQuery обработчик
+    myApp.views.list.pager.onValueChange(function(event, pageNum) { // стандартный обработчик события
         myApp.ajax.getData(pageNum, function(page) {
         myApp.views.list.pager.updatePager(page);
         // обновляем список

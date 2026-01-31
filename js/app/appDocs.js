@@ -1,4 +1,4 @@
-$(function() {
+document.addEventListener("DOMContentLoaded", function() {
   jiant.DEV_MODE = true;
   jiant.app((jiant) => ({
     id: "jDocs",
