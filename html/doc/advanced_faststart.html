@@ -75,7 +75,7 @@
       const ask = app.views.ask,
       		greet = app.views.greet;
     	ask.propagate(app.models.user, true, true, {nameInput: "name"}); // привязываем вьюшку к модели, с обновлением в обе стороны
-    	ask.submitCtl.click(function() { // по нажатию на кнопку
+    	ask.submitCtl.addEventListener("click", function() { // по нажатию на кнопку
     		greet.propagate(app.models.user, false, false, {nameLabel: "name"}); // заполняем вьюшку приветствия текущими данными модели
     		ask.hide(); // прячем вьюшку с вводом данных
     		greet.show(); // показываем приветствие
@@ -181,7 +181,7 @@
                     $.each(serverData.menuItems, function(idx, menuItem) {
                         const menuElem = tmMenuItem.parseTemplate({label: menuItem.labelText});
                         menu.append(menuElem);
-                        menuElem.control.click(function() {
+                        menuElem.control.addEventListener("click", function() {
                             alert("Where we are go today?");
                         });
                     });

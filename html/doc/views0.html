@@ -38,7 +38,7 @@ jiant.app(app);
 После вызова <b>jiant.app()</b> или <b>jiant.bindUi()</b> можно использовать,
 
 <pre><code class="js">
-    app.views.mainLayout.login.click(function() {} );
+    app.views.mainLayout.login.addEventListener("click", function() {} );
 </code></pre>
 
 <h4>Объявление виджетов</h4>
@@ -221,7 +221,7 @@ DOM элементам по идентификатору, и все элемен
 
 <pre><code class="js">
     // отошлем форму
-    myapp.views.mainView.ctl.click(function() {
+    myapp.views.mainView.ctl.addEventListener("click", function() {
         myapp.views.mainView.form.submitForm(function() { alert("saved"); });
     });
 </code></pre>

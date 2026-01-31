@@ -217,7 +217,7 @@ Jiant модули полностью совместимы с минификац
 еще не доступно. Поэтому необходимо работающий с приложением код заключать в <b>onApp</b>.
 Также возможно модифицировать приложение из модуля, и эти модификации будут применены к связыванию
 <pre><code class="js">
-  jiant.module("m0", function ($, app) {
+    jiant.module("m0", function (app) {
 
     const view = app.views.view = {
             ctlForget: jiant.ctl,
@@ -235,12 +235,12 @@ Jiant модули полностью совместимы с минификац
             func: function(val) {}
         };
 
-    jiant.onApp(app, function ($, app) {
-        $("body").append(view);
-        view.ctlForget.click(function () {
+    jiant.onApp(app, function (app) {
+        document.body.append(view);
+        view.ctlForget.addEventListener("click", function () {
             view.container.append(app.templates.tm.parseTemplate({name: new Date()}));
         });
-        view.ctlBind.click(function () {
+        view.ctlBind.addEventListener("click", function () {
             jiant.bindUi("_", moduleApp, true);
         });
     });

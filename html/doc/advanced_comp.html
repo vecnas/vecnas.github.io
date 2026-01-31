@@ -34,13 +34,13 @@
       impl: '&lt;b>&lt;div class="_zoomIn" style="display: none; cursor: pointer">&lt;i class="fa fa-search-plus" aria-hidden="true">' +
           '&lt;/i>&lt;/div>&lt;div class="_zoomOut" style="cursor: pointer">&lt;i class="fa fa-search-minus" aria-hidden="true"></i>&lt;/div>&lt;/b>',
       jInit: function() {
-          this.zoomIn.click(() => {
+          this.zoomIn.addEventListener("click", () => {
               this.zoomIn.hide();
               this.zoomOut.show();
               change(false);
           });
 
-          this.zoomOut.click(() => {
+          this.zoomOut.addEventListener("click", () => {
               this.zoomOut.hide();
               this.zoomIn.show();
               change(true);

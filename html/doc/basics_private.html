@@ -24,7 +24,7 @@ Jiant позволяет создавать публично доступные 
   jiant.module("myModule", function(app, jiant) {
       jiant.onApp(app, function() {
           const myView = jiant.bindView(app, "myView", {label: jiant.label, button: jiant.ctl});
-          myView.button.click(function() {...});
+          myView.button.addEventListener("click", function() {...});
       });
   });
 </code></pre>

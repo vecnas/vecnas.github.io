@@ -79,12 +79,12 @@
       minLabel: jiant.label,
       max: jiant.fn(function(val) {
           this._maxValue = isNumber(val) ? val : this._maxValue;
-          this.maxLabel.html(this._maxValue);
+          this.maxLabel.innerHTML = this._maxValue;
           return this._maxValue;
       }),
       min: jiant.fn(function(val) {
           this._minValue = isNumber(val) ? val : this._minValue;
-          this.minLabel.html(this._minValue);
+          this.minLabel.innerHTML = this._minValue;
           return this._minValue;
       }),
     ....

@@ -768,7 +768,7 @@
 <pre><code class="js">
     ctl2state: function(ctl, state, selectedCssClass) {
         return function() {
-            ctl.click(function() {
+            ctl.addEventListener("click", function() {
                 state.go();
             });
             selectedCssClass && state.start(function() {

@@ -140,7 +140,7 @@ jiant.xl.bindList(app.models.todo, app.views.main.todoList, app.templates.tmTodo
 В самой функции customRenderer настраивается взаимная связь объекта модели <b>todo</b>
 и элемента интерфейса <b>todoElem</b>, согласно постановке задачи. Например:
 <pre><code class="js">
-todoElem.deleteCtl.click(function() {
+todoElem.deleteCtl.addEventListener("click", function() {
     todo.remove();
 });
 
@@ -184,7 +184,7 @@ function persist() {
 и синхронизирует состояние интерфейса в зависимости от их состояния: видимость элементов, счетчики. Пример кода:
 <pre><code class="js">
 app.views.footer.activeCount.customRenderer = function(env, elem, cnt) {
-    elem.html(app.logic.txt.itemsLeft(cnt));
+    elem.innerHTML = app.logic.txt.itemsLeft(cnt);
 };
 
 function updateView() {
@@ -197,7 +197,7 @@ m.todo.on(function() {
     syncVisibility();
 });
 
-app.views.footer.clearCompletedCtl.click(function() {
+app.views.footer.clearCompletedCtl.addEventListener("click", function() {
     m.todo.jRepo.listByCompleted(true).remove();
 });
 </code></pre>
@@ -211,7 +211,7 @@ app.views.footer.clearCompletedCtl.click(function() {
 <ol>
   <li>По клику на нужную кнопку - достает из модели все элементы и ставит на них "завершен" или "нет"
 <pre><code class="js">
-ctl.click(function() {
+ctl.addEventListener("click", function() {
   m.jRepo.all().completed(ctl.prop("checked"));
 });
 </code></pre>
