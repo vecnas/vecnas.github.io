@@ -3,7 +3,7 @@ jiant.module("docsMain", function({app, jiant}) {
     if (!view) {
       return null;
     }
-    return view._el || view;
+    return view._el || view.el || view;
   }
 
   function firstViewElem(view) {
@@ -14,7 +14,10 @@ jiant.module("docsMain", function({app, jiant}) {
     if (el.nodeType) {
       return el;
     }
-    if (typeof el.length === "number") {
+    if (Array.isArray(el)) {
+      return unwrapView(el[0]) || null;
+    }
+    if (typeof el.length === "number" && (typeof el.item === "function" || el[0])) {
       return unwrapView(el[0]) || null;
     }
     return el;
@@ -32,14 +35,14 @@ jiant.module("docsMain", function({app, jiant}) {
 
   function addClass(view, cls) {
     const el = firstViewElem(view);
-    if (el) {
+    if (el && el.classList) {
       el.classList.add(cls);
     }
   }
 
   function removeClass(view, cls) {
     const el = firstViewElem(view);
-    if (el) {
+    if (el && el.classList) {
       el.classList.remove(cls);
     }
   }
@@ -107,7 +110,9 @@ jiant.module("docsMain", function({app, jiant}) {
       Array.from(containerEl.querySelectorAll("h4")).forEach(function(elem, i) {
         addSubnavItem(elem.innerHTML, elem, i);
         if (i === section) {
-          elem.scrollIntoView({behavior: "smooth"});
+          if (typeof elem.scrollIntoView === "function") {
+            elem.scrollIntoView({behavior: "smooth"});
+          }
         }
       });
     }
