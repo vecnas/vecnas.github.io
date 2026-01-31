@@ -102,7 +102,7 @@ jiant.module("docsMain", function({app, jiant}) {
     function updateSubnav(section) {
       clearElem(app.views.main.subnav);
       const navRoot = firstViewElem(app.views.nav);
-      addSubnavItem(app.logic.intl.onTop(), navRoot, 0);
+      addSubnavItem(app.intl.onTop(), navRoot, 0);
       const containerEl = firstViewElem(app.views.main.container);
       if (!containerEl) {
         return;
