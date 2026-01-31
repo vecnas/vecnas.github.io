@@ -35,13 +35,13 @@ document.addEventListener("DOMContentLoaded", function() {
     },
     templates: {
       nav: {
-        impl: "<b><li><a class='_label _ctl'></a><ul class='_container nav navbar-nav'></ul></li></b>",
+        impl: "<li><a class='_label _ctl'></a><ul class='_container nav navbar-nav'></ul></li>",
         label: jiant.nlabel,
         ctl: jiant.ctl,
         container: jiant.container
       },
       subnav: {
-        impl: "<b><div class='_label'></div></b>",
+        impl: "<div class='_label'></div>",
         label: jiant.label
       }
     },
