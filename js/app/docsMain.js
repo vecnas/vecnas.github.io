@@ -4,6 +4,17 @@ jiant.module("docsMain", function({app, jiant}) {
   jiant.onApp("jDocs", function(app) {
 
     const topicCtls = {};
+    let intlReady = false;
+    let pendingSection = null;
+
+    jiant.onApp(app, ["intl"], function() {
+      intlReady = true;
+      if (pendingSection !== null) {
+        const section = pendingSection;
+        pendingSection = null;
+        updateSubnav(section);
+      }
+    });
     const tr = function(key) {
       return app.logic && app.logic.intl && app.logic.intl.t ? app.logic.intl.t(key) : key;
     };
@@ -47,7 +58,11 @@ jiant.module("docsMain", function({app, jiant}) {
     function updateSubnav(section) {
       dom.empty(app.views.main.subnav);
       const navRoot = dom.first(app.views.nav);
-      addSubnavItem(app.logic.intl.onTop(), navRoot, 0);
+      if (intlReady) {
+        addSubnavItem(app.logic.intl.onTop(), navRoot, 0);
+      } else {
+        pendingSection = section;
+      }
       const containerEl = dom.first(app.views.main.container);
       if (!containerEl) {
         return;
