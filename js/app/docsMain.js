@@ -15,10 +15,6 @@ jiant.module("docsMain", function({app, jiant}) {
         updateSubnav(section);
       }
     });
-    const tr = function(key) {
-      return app.logic && app.logic.intl && app.logic.intl.t ? app.logic.intl.t(key) : key;
-    };
-
     let currentTopic,
         currentSubtopic;
 
@@ -86,14 +82,14 @@ jiant.module("docsMain", function({app, jiant}) {
     }
 
     Object.entries(app.topics).forEach(function([topic, content]) {
-      const navItem = app.templates.nav.parseTemplate({label: tr(topic)});
+      const navItem = app.templates.nav.parseTemplate({label: topic});
       dom.append(app.views.nav, navItem);
       dom.on(navItem.ctl, "click", function() {
         app.states[""].go(topic, topic + "0", 0);
       });
       topicCtls[topic] = navItem;
       Object.entries(content).forEach(function([sub, subcontent]) {
-        const subnav = app.templates.nav.parseTemplate({label: tr(sub)});
+        const subnav = app.templates.nav.parseTemplate({label: sub});
         dom.append(navItem.container, subnav);
         dom.on(subnav.ctl, "click", function() {
           app.states[""].go(topic, sub, 0);
