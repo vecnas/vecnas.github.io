@@ -7,12 +7,14 @@ document.addEventListener("DOMContentLoaded", function() {
     modulesPrefix: "js/app/",
     modules: ["docsMain"],
     xl: {},
-    intl: {
-      i18n: 1,
-      url: "html/ru.json",
-      t: function(val) {},
-      onTop: function(val) {},
-      loadError: function() {}
+    logic: {
+      intl: {
+        i18n: 1,
+        url: "html/ru.json",
+        t: function(val) {},
+        onTop: function(val) {},
+        loadError: function() {}
+      }
     },
     states: {
       "": {
