@@ -142,7 +142,7 @@ jiant.onApp("id", ["extLib", "extLibLocal", "extLibLocal2", "googleConversion"],
 до того как будет вызван <b>implement()</b>, чтобы во время вызова implement и последующих, зависящих
 от логики участков кода, использовался переопределенный метод
 <pre><code class="js">
-  jiant.override(app.logic.api, function($, app) {
+  jiant.override(app.logic.api, function(app) {
 //      const prevTest = app.logic.api.test;
       return {
           test: function() {

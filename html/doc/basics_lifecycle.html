@@ -9,7 +9,7 @@
     на результат дальнейшего связывания. В частности, можно добавить новые модули в приложение
     <pre><code class="js">app.modules.push("i18nLoader");</code></pre>
     Наиболее подходящий способ это делать, через вызов <b>jiant.preApp</b>
-        <pre><code class="js">jiant.preApp(appOrAppId, function($, app) {
+        <pre><code class="js">jiant.preApp(appOrAppId, function(app) {
     app.modules.push("i18nLoader");
     app.modules.push("someModule");
 });
